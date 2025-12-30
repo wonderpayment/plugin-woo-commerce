@@ -1,10 +1,10 @@
-=== Wonder Payments ===
+=== Wonder Payment for WooCommerce ===
 Contributors: wonderpayment
 Donate link: https://wonder.app
 Tags: Wooemerence,Payment
 Requires at least: 4.7
-Tested up to: 6.8
-Stable tag: 6.8
+Tested up to: 6.9
+Stable tag: 1.0.0
 Requires PHP: 5.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html

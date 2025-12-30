@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Wonder Payments for WooCommerce
+Plugin Name: Wonder Payment for WooCommerce
 Plugin URI: https://wordpress.org/plugins/wonder-payment-for-woocommerce
 Description: Connect wonder payment gateway as a woocommerce payment plugin.
 Version: 1.0.0
