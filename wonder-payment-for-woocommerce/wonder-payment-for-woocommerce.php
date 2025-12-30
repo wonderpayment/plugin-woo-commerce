@@ -1,12 +1,12 @@
 <?php
 /*
 Plugin Name: Wonder Payments for WooCommerce
-Plugin URI: https://yourwebsite.com/
-Description: Integrates Wonder Payments with WooCommerce using official Wonder Payment SDK
+Plugin URI: https://wordpress.org/plugins/wonder-payment-for-woocommerce
+Description: Connect wonder payment gateway as a woocommerce payment plugin.
 Version: 1.0.0
-Author: Your Name
+Author: Wonder Payment
 License: GPL v2 or later
-Text Domain: wonder-payments
+Text Domain: wonder-payment-for-woocommerce
 */
 
 // 防止直接访问
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// 在你的插件主文件顶部（wonder-payments.php）
+// 在你的插件主文件顶部（wonder-payment-for-woocommerce.php）
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
     error_log('✅ Composer autoloader loaded');
@@ -54,7 +54,7 @@ function add_wonder_payments_gateway($gateways) {
 
 function wonder_payments_wc_notice() {
     echo '<div class="error"><p>';
-    echo __('Wonder Payments requires WooCommerce to be installed and activated.', 'wonder-payments');
+    echo __('Wonder Payments requires WooCommerce to be installed and activated.', 'wonder-payment-for-woocommerce');
     echo '</p></div>';
 }
 
@@ -380,25 +380,25 @@ function wonder_payments_admin_scripts($hook) {
         error_log('Script version (filemtime): ' . $script_version);
         // 先注册脚本
         wp_register_script(
-            'wonder-payments-admin',
+            'wonder-payment-for-woocommerce-admin',
             $script_url,
             array('jquery'),
             $script_version,
             true
         );
         // 最后排队脚本
-        wp_enqueue_script('wonder-payments-admin');
+        wp_enqueue_script('wonder-payment-for-woocommerce-admin');
         // 传递数据到 JavaScript
-        wp_localize_script('wonder-payments-admin', 'wonder_payments_admin', array(
+        wp_localize_script('wonder-payment-for-woocommerce-admin', 'wonder_payments_admin', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'generate_nonce' => wp_create_nonce('wonder_generate_keys'),
             'test_nonce' => wp_create_nonce('wonder_test_config'),
             'strings' => array(
-                'public_key_label' => __('Public Key (upload to Wonder Portal):', 'wonder-payments'),
-                'important' => __('Important:', 'wonder-payments'),
-                'save_changes' => __('Please click "Save changes" to save the private key.', 'wonder-payments'),
-                'enter_fields' => __('Please enter App ID and Private Key first.', 'wonder-payments'),
-                'error' => __('Error:', 'wonder-payments')
+                'public_key_label' => __('Public Key (upload to Wonder Portal):', 'wonder-payment-for-woocommerce'),
+                'important' => __('Important:', 'wonder-payment-for-woocommerce'),
+                'save_changes' => __('Please click "Save changes" to save the private key.', 'wonder-payment-for-woocommerce'),
+                'enter_fields' => __('Please enter App ID and Private Key first.', 'wonder-payment-for-woocommerce'),
+                'error' => __('Error:', 'wonder-payment-for-woocommerce')
             )
         ));
         error_log('=== WONDER PAYMENTS: Admin scripts loaded successfully ===');

@@ -305,7 +305,7 @@ class WC_Wonder_Payments_Result_Handler {
                 // 检查是否已经支付过
                 if (!$order->is_paid()) {
                     error_log('✅ 订单支付成功，更新订单状态');
-                    $order->update_status('completed', __('通过 Wonder Payments 完成支付', 'wonder-payments'));
+                    $order->update_status('completed', __('通过 Wonder Payments 完成支付', 'wonder-payment-for-woocommerce'));
 
                     // 保存交易信息 - 优先保存交易UUID，如果没有则保存订单号
                     $transaction_id = '';

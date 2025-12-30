@@ -1,5 +1,5 @@
 {
-  "name": "wonder-payment/wonder-payments",
+  "name": "wonder-payment/wonder-payment-for-woocommerce",
   "description": "Wonder Payments WooCommerce Plugin",
   "type": "wordpress-plugin",
   "repositories": [
@@ -13,7 +13,7 @@
   },
   "autoload": {
     "classmap": [
-      "includes/"
+      "wonder-payment-for-woocommerce/includes/"
     ]
   }
 }

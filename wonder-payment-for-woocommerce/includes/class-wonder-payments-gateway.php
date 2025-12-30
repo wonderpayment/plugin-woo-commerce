@@ -22,8 +22,8 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         $this->id = 'wonder_payments';
         $this->icon = '';
         $this->has_fields = false;
-        $this->method_title = __('Wonder Payments', 'wonder-payments');
-        $this->method_description = __('Accept payments via Wonder Payments', 'wonder-payments');
+        $this->method_title = __('Wonder Payments', 'wonder-payment-for-woocommerce');
+        $this->method_description = __('Accept payments via Wonder Payments', 'wonder-payment-for-woocommerce');
 
         // 声明支持的功能
         $this->supports = array(
@@ -85,23 +85,23 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
         $this->form_fields = array(
                 'enabled' => array(
-                        'title' => __('Enable/Disable', 'wonder-payments'),
-                        'label' => __('Enable Wonder Payments', 'wonder-payments'),
+                        'title' => __('Enable/Disable', 'wonder-payment-for-woocommerce'),
+                        'label' => __('Enable Wonder Payments', 'wonder-payment-for-woocommerce'),
                         'type' => 'checkbox',
                         'default' => 'no'
                 ),
                 'environment' => array(
-                        'title' => __('Sandbox Mode', 'wonder-payments'),
-                        'label' => __('Enable Sandbox Mode', 'wonder-payments'),
+                        'title' => __('Sandbox Mode', 'wonder-payment-for-woocommerce'),
+                        'label' => __('Enable Sandbox Mode', 'wonder-payment-for-woocommerce'),
                         'type' => 'checkbox',
-                        'description' => __('When enabled, uses the staging environment. When disabled, uses the production environment.', 'wonder-payments'),
+                        'description' => __('When enabled, uses the staging environment. When disabled, uses the production environment.', 'wonder-payment-for-woocommerce'),
                         'default' => 'yes',
                         'desc_tip' => true
                 ),
                 'due_date' => array(
-                        'title' => __('Payment Due Days', 'wonder-payments'),
+                        'title' => __('Payment Due Days', 'wonder-payment-for-woocommerce'),
                         'type' => 'number',
-                        'description' => __('Number of days from order creation until payment is due. Default is 30 days.', 'wonder-payments'),
+                        'description' => __('Number of days from order creation until payment is due. Default is 30 days.', 'wonder-payment-for-woocommerce'),
                         'default' => '30',
                         'desc_tip' => true,
                         'css' => 'width: 100px;',
@@ -111,23 +111,23 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                         )
                 ),
                 'title' => array(
-                        'title' => __('Title', 'wonder-payments'),
+                        'title' => __('Title', 'wonder-payment-for-woocommerce'),
                         'type' => 'text',
-                        'description' => __('This controls the title which the user sees during checkout.', 'wonder-payments'),
-                        'default' => __('Wonder Payments', 'wonder-payments'),
+                        'description' => __('This controls the title which the user sees during checkout.', 'wonder-payment-for-woocommerce'),
+                        'default' => __('Wonder Payments', 'wonder-payment-for-woocommerce'),
                         'desc_tip' => true
                 ),
                 'description' => array(
-                        'title' => __('Description', 'wonder-payments'),
+                        'title' => __('Description', 'wonder-payment-for-woocommerce'),
                         'type' => 'textarea',
-                        'description' => __('This controls the description which the user sees during checkout.', 'wonder-payments'),
-                        'default' => __('Pay securely via Wonder Payments', 'wonder-payments'),
+                        'description' => __('This controls the description which the user sees during checkout.', 'wonder-payment-for-woocommerce'),
+                        'default' => __('Pay securely via Wonder Payments', 'wonder-payment-for-woocommerce'),
                         'desc_tip' => true
                 ),
                 'app_id' => array(
-                        'title' => __('App ID', 'wonder-payments'),
+                        'title' => __('App ID', 'wonder-payment-for-woocommerce'),
                         'type' => 'text',
-                        'description' => __('Your Wonder Payments App ID', 'wonder-payments'),
+                        'description' => __('Your Wonder Payments App ID', 'wonder-payment-for-woocommerce'),
                         'default' => '',
                         'desc_tip' => true,
                         'css' => 'width: 400px;'
@@ -142,9 +142,9 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 ),
             // Webhook公钥字段 - 从Portal获取
                 'webhook_public_key' => array(
-                        'title' => __('Webhook Public Key', 'wonder-payments'),
+                        'title' => __('Webhook Public Key', 'wonder-payment-for-woocommerce'),
                         'type' => 'textarea',
-                        'description' => __('Get webhook public key from wonder portal when created appid.', 'wonder-payments'),
+                        'description' => __('Get webhook public key from wonder portal when created appid.', 'wonder-payment-for-woocommerce'),
                         'default' => '',
                         'css' => 'font-family: monospace; font-size: 11px; width: 100%; height: 200px;',
                         'desc_tip' => false
@@ -177,23 +177,23 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             <!-- 密钥对显示区域 -->
             <div class="wonder-keys-display" style="display: flex; gap: 20px; margin-bottom: 20px;">
                 <div style="flex: 1;">
-                    <h4><?php _e('Private Key', 'wonder-payments'); ?></h4>
-                    <p class="description"><?php _e('Your RSA 4096-bit private key. Keep this secure.', 'wonder-payments'); ?></p>
+                    <h4><?php _e('Private Key', 'wonder-payment-for-woocommerce'); ?></h4>
+                    <p class="description"><?php _e('Your RSA 4096-bit private key. Keep this secure.', 'wonder-payment-for-woocommerce'); ?></p>
                     <textarea id="wonder-private-key-display"
                               style="width: 100%; height: 200px; font-family: monospace; font-size: 11px; margin: 10px 0; padding: 10px; background: #fff;">
                             <?php echo esc_textarea($private_key); ?>
                         </textarea>
 
                     <button type="button" class="button button-primary" id="wonder-generate-keys">
-                        <?php _e('Generate RSA Keys', 'wonder-payments'); ?>
+                        <?php _e('Generate RSA Keys', 'wonder-payment-for-woocommerce'); ?>
                     </button>
                     <span class="spinner" style="float: none; margin: 0 10px;"></span>
                     <span id="wonder-generate-message" style="margin-left: 10px;"></span>
                 </div>
 
                 <div style="flex: 1;">
-                    <h4><?php _e('Public Key', 'wonder-payments'); ?></h4>
-                    <p class="description"><?php _e('Copy this public key and upload it to Wonder Portal.', 'wonder-payments'); ?></p>
+                    <h4><?php _e('Public Key', 'wonder-payment-for-woocommerce'); ?></h4>
+                    <p class="description"><?php _e('Copy this public key and upload it to Wonder Portal.', 'wonder-payment-for-woocommerce'); ?></p>
                     <textarea id="wonder-generated-public-key-display" readonly
                               style="width: 100%; height: 200px; font-family: monospace; font-size: 11px; margin: 10px 0; padding: 10px; background: #fff;">
                             <?php echo esc_textarea($generated_public_key); ?>
@@ -223,7 +223,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         <!-- Test Configuration 按钮 -->
         <div class="wonder-payments-actions">
             <button type="button" class="button" id="wonder-test-config">
-                <?php _e('Test Configuration', 'wonder-payments'); ?>
+                <?php _e('Test Configuration', 'wonder-payment-for-woocommerce'); ?>
             </button>
             <span class="spinner" style="float: none; margin: 0 10px;"></span>
             <span id="wonder-action-message" style="margin-left: 10px;"></span>
@@ -315,7 +315,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                         },
                         error: function (xhr, status, error) {
                             console.error('Generate keys error:', error);
-                            $message.html('<span style="color: red;">❌ <?php _e('Error:', 'wonder-payments'); ?> ' + error + '</span>').addClass('error');
+                            $message.html('<span style="color: red;">❌ <?php _e('Error:', 'wonder-payment-for-woocommerce'); ?> ' + error + '</span>').addClass('error');
                         },
                         complete: function () {
                             // 恢复按钮状态
@@ -342,11 +342,11 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         $log_message .= "GET: " . print_r($_GET, true) . "\n";
 
         error_log($log_message);
-        file_put_contents('/Users/wonder/Development/wordpress-docker/wp-content/plugins/wonder-payments/debug_generate_keys.txt', $log_message . "\n", FILE_APPEND);
+        file_put_contents('/Users/wonder/Development/wordpress-docker/wp-content/plugins/wonder-payment-for-woocommerce/debug_generate_keys.txt', $log_message . "\n", FILE_APPEND);
 
         check_ajax_referer('wonder_generate_keys', 'security');
         error_log('✅ Nonce验证通过');
-        file_put_contents('/Users/wonder/Development/wordpress-docker/wp-content/plugins/wonder-payments/debug_generate_keys.txt', "✅ Nonce验证通过\n", FILE_APPEND);
+        file_put_contents('/Users/wonder/Development/wordpress-docker/wp-content/plugins/wonder-payment-for-woocommerce/debug_generate_keys.txt', "✅ Nonce验证通过\n", FILE_APPEND);
 
         // 获取当前环境配置
         $settings = get_option('woocommerce_wonder_payments_settings', array());
@@ -404,7 +404,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             error_log('✅ 设置已更新到数据库');
 
             $response = array(
-                    'message' => __('RSA 4096-bit key pair generated successfully', 'wonder-payments'),
+                    'message' => __('RSA 4096-bit key pair generated successfully', 'wonder-payment-for-woocommerce'),
                     'private_key' => $private_key,
                     'public_key' => $public_key_pem
             );
@@ -487,13 +487,13 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
         // 检查是否设置了必要参数
         if (empty($this->app_id) || empty($this->private_key)) {
-            wc_add_notice(__('Payment gateway is not configured properly. Please check your App ID and Private Key.', 'wonder-payments'), 'error');
+            wc_add_notice(__('Payment gateway is not configured properly. Please check your App ID and Private Key.', 'wonder-payment-for-woocommerce'), 'error');
             return;
         }
 
         // 检查SDK是否存在
         if (!class_exists('PaymentSDK')) {
-            wc_add_notice(__('Payment gateway SDK is not available. Please ensure the SDK files are properly included.', 'wonder-payments'), 'error');
+            wc_add_notice(__('Payment gateway SDK is not available. Please ensure the SDK files are properly included.', 'wonder-payment-for-woocommerce'), 'error');
             return;
         }
 
@@ -510,14 +510,14 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             // 验证私钥格式
             $privateKey = trim($this->private_key);
             if (empty($privateKey)) {
-                wc_add_notice(__('Private key is not set. Please configure your payment gateway.', 'wonder-payments'), 'error');
+                wc_add_notice(__('Private key is not set. Please configure your payment gateway.', 'wonder-payment-for-woocommerce'), 'error');
                 return;
             }
 
             $privateKeyId = openssl_pkey_get_private($privateKey);
             if (!$privateKeyId) {
                 error_log('WONDER PAYMENTS: Invalid private key format');
-                wc_add_notice(__('Invalid private key format. Please reconfigure your payment gateway.', 'wonder-payments'), 'error');
+                wc_add_notice(__('Invalid private key format. Please reconfigure your payment gateway.', 'wonder-payment-for-woocommerce'), 'error');
                 return;
             }
             openssl_pkey_free($privateKeyId);
@@ -550,7 +550,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             $sdk = new PaymentSDK($options);
 
             if (!$sdk) {
-                wc_add_notice(__('Payment gateway SDK initialization failed.', 'wonder-payments'), 'error');
+                wc_add_notice(__('Payment gateway SDK initialization failed.', 'wonder-payment-for-woocommerce'), 'error');
                 return;
             }
 
@@ -575,7 +575,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                             'currency' => $api_currency,
                             'note' => 'Order #' . $order->get_order_number() . ' from ' . get_bloginfo('name'),
                             'customer' => array(
-                                    'name' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+                                    'name' => $order->get_billing_first_name() . ' class-wonder-payments-gateway.php' . $order->get_billing_last_name(),
                                     'email' => $order->get_billing_email(),
                                     'phone' => $order->get_billing_phone()
                             )
@@ -619,14 +619,14 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                         update_post_meta($order_id, '_wonder_transaction_id', $response['data']['id']);
                     }
                     // 更新订单状态为待支付
-                    $order->update_status('pending', __('Awaiting Wonder Payments payment', 'wonder-payments'));
+                    $order->update_status('pending', __('Awaiting Wonder Payments payment', 'wonder-payment-for-woocommerce'));
                     // 重定向到支付链接
                     return array(
                             'result'   => 'success',
                             'redirect' => $payment_link
                     );
                 } else {
-                    $error_msg = __('Payment link could not be created. Please contact administrator.', 'wonder-payments');
+                    $error_msg = __('Payment link could not be created. Please contact administrator.', 'wonder-payment-for-woocommerce');
 
                     if (isset($response['message'])) {
                         $error_msg = $response['message'];
@@ -640,7 +640,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 }
         } catch (Exception $e) {
             error_log('WONDER PAYMENTS: Payment Processing Error - ' . $e->getMessage());
-            wc_add_notice(__('Payment processing failed: ', 'wonder-payments') . $e->getMessage(), 'error');
+            wc_add_notice(-wonder - payments - gateway . php__('Payment processing failed: ', 'wonder-payment-for-woocommerce') . $e->getMessage(), 'error');
             return;
         }
     }
@@ -652,34 +652,34 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
     {
         // 验证必要参数
         if (!$this->app_id || !$this->private_key) {
-            return new WP_Error('error', __('Payment gateway not configured', 'wonder-payments'));
+            return new WP_Error('error', __('Payment gateway not configured', 'wonder-payment-for-woocommerce'));
         }
 
         $order = wc_get_order($order_id);
         if (!$order) {
-            return new WP_Error('error', __('Order not found', 'wonder-payments'));
+            return new WP_Error('error', __('Order not found', 'wonder-payment-for-woocommerce'));
         }
 
         if (!$amount || $amount <= 0) {
-            return new WP_Error('error', __('Invalid refund amount', 'wonder-payments'));
+            return new WP_Error('error', __('Invalid refund amount', 'wonder-payment-for-woocommerce'));
         }
 
         try {
             // 检查SDK是否存在
             if (!class_exists('PaymentSDK')) {
-                return new WP_Error('error', __('PaymentSDK not available', 'wonder-payments'));
+                return new WP_Error('error', __('PaymentSDK not available', 'wonder-payment-for-woocommerce'));
             }
 
             // 获取订单参考号
             $reference_number = get_post_meta($order_id, '_wonder_reference_number', true);
             if (empty($reference_number)) {
-                return new WP_Error('error', __('Order reference number not found', 'wonder-payments'));
+                return new WP_Error('error', __('Order reference number not found', 'wonder-payment-for-woocommerce'));
             }
 
             // 获取交易UUID（从订单备注或元数据中获取）
             $transaction_uuid = get_post_meta($order_id, '_wonder_transaction_id', true);
             if (empty($transaction_uuid)) {
-                return new WP_Error('error', __('Transaction ID not found', 'wonder-payments'));
+                return new WP_Error('error', __('Transaction ID not found', 'wonder-payment-for-woocommerce'));
             }
 
             // 获取订单货币
@@ -736,7 +736,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 
                 $order->add_order_note(
                         sprintf(
-                                __('Wonder Payments refund successful. Amount: %s, Reason: %s', 'wonder-payments'),
+                                __('Wonder Payments refund successful. Amount: %s, Reason: %s', 'wonder-payment-for-woocommerce'),
                                 wc_price($amount),
                                 $reason ? $reason : 'N/A'
                         )
@@ -755,7 +755,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 }
 
                 // 更新订单状态为已退款
-                $order->update_status('refunded', __('Order refunded via Wonder Payments', 'wonder-payments'));
+                $order->update_status('refunded', __('Order refunded via Wonder Payments', 'wonder-payment-for-woocommerce'));
                 error_log('✅ 订单状态已更新为已退款');
 
                 return true;
@@ -770,7 +770,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 
                 $order->add_order_note(
                         sprintf(
-                                __('Wonder Payments refund failed. Amount: %s, Error: %s', 'wonder-payments'),
+                                __('Wonder Payments refund failed. Amount: %s, Error: %s', 'wonder-payment-for-woocommerce'),
                                 wc_price($amount),
                                 $error_message
                         )
@@ -783,7 +783,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             error_log('Wonder Payments 退款异常: ' . $e->getMessage());
             $order->add_order_note(
                     sprintf(
-                            __('Wonder Payments refund exception: %s', 'wonder-payments'),
+                            __('Wonder Payments refund exception: %s', 'wonder-payment-for-woocommerce'),
                             $e->getMessage()
                     )
             );
@@ -854,9 +854,9 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         if ($status === 'success' || $status === 'completed' || $status === 'paid') {
             $transaction_id = isset($data['transaction_id']) ? $data['transaction_id'] : '';
             $order->payment_complete($transaction_id);
-            $order->add_order_note(__('Wonder Payments payment completed.', 'wonder-payments'));
+            $order->add_order_note(__('Wonder Payments payment completed.', 'wonder-payment-for-woocommerce'));
         } else {
-            $order->update_status('failed', __('Wonder Payments payment failed.', 'wonder-payments'));
+            $order->update_status('failed', __('Wonder Payments payment failed.', 'wonder-payment-for-woocommerce'));
         }
 
         // 返回成功响应
