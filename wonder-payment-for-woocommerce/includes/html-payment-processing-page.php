@@ -101,7 +101,7 @@ function wonder_render_payment_processing_page($order) {
                 </div>
                 <div class="info-row">
                     <span class="label">订单金额：</span>
-                    <span class="value"><?php echo wc_price($order->get_total()); ?></span>
+                    <span class="value"><?php echo wp_kses_post(wc_price($order->get_total())); ?></span>
                 </div>
                 <div class="info-row">
                     <span class="label">支付方式：</span>
@@ -130,7 +130,7 @@ function wonder_render_payment_processing_page($order) {
 
                     // 使用AJAX检查支付状态
                     const xhr = new XMLHttpRequest();
-                    xhr.open('POST', '<?php echo admin_url('admin-ajax.php'); ?>', true);
+                    xhr.open('POST', '<?php echo esc_url(admin_url('admin-ajax.php')); ?>', true);
                     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
 
                     xhr.onreadystatechange = function() {
@@ -192,7 +192,7 @@ function wonder_render_payment_processing_page($order) {
                         'action': 'wonder_payments_check_status',
                         'order_id': orderData.order_id,
                         'order_key': orderData.order_key,
-                        'nonce': '<?php echo wp_create_nonce('wonder_payments_check_status'); ?>'
+                        'nonce': '<?php echo esc_js(wp_create_nonce('wonder_payments_check_status')); ?>'
                     }).toString();
                     
                     xhr.send(params);

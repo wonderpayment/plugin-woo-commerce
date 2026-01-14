@@ -16,7 +16,7 @@ jQuery(document).ready(function($) {
     console.log('Checking for buttons...');
     console.log('Generate button:', $('#wonder-generate-keys').length);
     console.log('Test button:', $('#wonder-test-config').length);
-    console.log('Actions div:', $('.wonder-payment-for-woocommerce-actions').length);
+    console.log('Actions div:', $('.wonder-payments-actions').length);
     console.log('Message div:', $('#wonder-action-message').length);
 
     // 如果按钮不存在，尝试重新查找（可能动态加载）

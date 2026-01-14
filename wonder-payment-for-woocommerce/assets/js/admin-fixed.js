@@ -255,6 +255,38 @@
         // 开始初始化
         initializeWithRetry();
 
+        // 在表单提交前同步私钥和公钥值
+        $(document).on('submit', 'form', function(e) {
+            var $privateKeyDisplay = $('#wonder-private-key-display');
+            var $privateKeyHidden = $('textarea[name="woocommerce_wonder_payments_private_key"]');
+            var $publicKeyDisplay = $('#wonder-generated-public-key-display');
+            var $publicKeyHidden = $('textarea[name="woocommerce_wonder_payments_generated_public_key"]');
+            
+            console.log('=== Form Submit Event Triggered ===');
+            console.log('Private key display found:', $privateKeyDisplay.length);
+            console.log('Private key hidden found:', $privateKeyHidden.length);
+            console.log('Public key display found:', $publicKeyDisplay.length);
+            console.log('Public key hidden found:', $publicKeyHidden.length);
+            
+            if ($privateKeyDisplay.length && $privateKeyHidden.length) {
+                // 将显示区域的私钥值同步到隐藏字段
+                var privateKeyValue = $privateKeyDisplay.val();
+                $privateKeyHidden.val(privateKeyValue);
+                console.log('Private key synced before form submission');
+                console.log('Private key length:', privateKeyValue ? privateKeyValue.length : 0);
+            }
+            
+            if ($publicKeyDisplay.length && $publicKeyHidden.length) {
+                // 将显示区域的公钥值同步到隐藏字段
+                var publicKeyValue = $publicKeyDisplay.val();
+                $publicKeyHidden.val(publicKeyValue);
+                console.log('Public key synced before form submission');
+                console.log('Public key length:', publicKeyValue ? publicKeyValue.length : 0);
+            }
+            
+            console.log('=====================================');
+        });
+
         console.log('=== Wonder Payments Admin JS Initialization Complete ===');
     });
 

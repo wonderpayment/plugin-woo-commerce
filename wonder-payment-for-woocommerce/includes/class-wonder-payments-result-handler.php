@@ -15,6 +15,13 @@ class WC_Wonder_Payments_Result_Handler {
     }
 
     /**
+     * 获取 WooCommerce logger 实例
+     */
+    private function get_logger() {
+        return wc_get_logger();
+    }
+
+    /**
      * 显示支付处理页面（中转页面）
      */
     public function show_payment_processing_page($order_id, $order_key) {
@@ -33,7 +40,6 @@ class WC_Wonder_Payments_Result_Handler {
 
         // 如果订单已经支付完成，直接跳转到感谢页面
         if ($order->is_paid()) {
-            error_log('订单已支付，跳转到感谢页面');
             $this->redirect_to_thankyou_page($order);
             return;
         }
@@ -43,17 +49,14 @@ class WC_Wonder_Payments_Result_Handler {
         $reference_number = get_post_meta($order_id, '_wonder_reference_number', true);
         if (!empty($reference_number)) {
             try {
-                error_log('检查订单支付状态...');
                 $check_result = $this->check_payment_status($order_id, $order_key);
 
                 if ($check_result['success'] === true) {
                     // 如果检查发现已支付，直接跳转
-                    error_log('支付状态检查发现订单已支付，跳转到感谢页面');
                     $this->redirect_to_thankyou_page($order);
                     return;
                 }
             } catch (Exception $e) {
-                error_log('初始支付状态检查失败: ' . $e->getMessage());
             }
         }
 
@@ -65,14 +68,9 @@ class WC_Wonder_Payments_Result_Handler {
      * 查询支付状态并处理
      */
     public function check_payment_status($order_id, $order_key) {
-        error_log('=== Wonder Payments check_payment_status 开始 ===');
-        error_log('订单ID: ' . $order_id);
-        error_log('订单Key: ' . $order_key);
-
         $order = wc_get_order($order_id);
 
         if (!$order) {
-            error_log('❌ 订单不存在: ' . $order_id);
             return array(
                 'success' => false,
                 'message' => '订单验证失败：订单不存在',
@@ -81,9 +79,6 @@ class WC_Wonder_Payments_Result_Handler {
         }
 
         if ($order->get_order_key() !== $order_key) {
-            error_log('❌ 订单Key不匹配');
-            error_log('期望Key: ' . $order->get_order_key());
-            error_log('提供Key: ' . $order_key);
             return array(
                 'success' => false,
                 'message' => '订单验证失败：订单Key不匹配',
@@ -93,10 +88,8 @@ class WC_Wonder_Payments_Result_Handler {
 
         // 获取参考号
         $reference_number = get_post_meta($order_id, '_wonder_reference_number', true);
-        error_log('参考号: ' . ($reference_number ?: '未找到'));
-
+        $request_id = get_post_meta($order_id, '_wonder_request_id', true);
         if (empty($reference_number)) {
-            error_log('❌ 未找到支付参考号');
             return array(
                 'success' => false,
                 'message' => '未找到支付信息',
@@ -106,7 +99,6 @@ class WC_Wonder_Payments_Result_Handler {
 
         try {
             // 初始化SDK
-            error_log('初始化SDK...');
             $webhook_key = !empty($this->gateway->webhook_public_key) ? $this->gateway->webhook_public_key : null;
             $options = array(
                 'appid' => $this->gateway->app_id,
@@ -118,17 +110,17 @@ class WC_Wonder_Payments_Result_Handler {
                 'skipSignature' => false
             );
 
-            error_log('SDK选项: ' . print_r(array(
-                'appid' => substr($this->gateway->app_id, 0, 8) . '...',
-                'has_private_key' => !empty($this->gateway->private_key),
-                'has_webhook_key' => !empty($webhook_key),
-                'environment' => $this->gateway->get_environment()
-            ), true));
+            // 如果存在 request_id，则传递给 SDK
+            if (!empty($request_id)) {
+                $options['request_id'] = $request_id;
+            }
+
+            $logger = $this->get_logger();
+            $logger->debug('SDK Options initialized', array( 'source' => 'wonder-payments' ));
 
             $sdk = new PaymentSDK($options);
 
             if (!$sdk) {
-                error_log('❌ SDK初始化失败');
                 return array(
                     'success' => false,
                     'message' => '支付网关SDK初始化失败',
@@ -143,8 +135,7 @@ class WC_Wonder_Payments_Result_Handler {
                 )
             );
 
-            error_log('查询参数: ' . print_r($params, true));
-            
+
             $max_retries = 3;
             $retry_count = 0;
             $response = null;
@@ -152,14 +143,12 @@ class WC_Wonder_Payments_Result_Handler {
             
             while ($retry_count < $max_retries) {
                 try {
-                    error_log("尝试查询支付状态 (尝试 {$retry_count}/{$max_retries})...");
                     $response = $sdk->queryOrder($params);
                     break; // 成功则跳出循环
                 } catch (Exception $e) {
                     $retry_count++;
                     $last_error = $e;
-                    error_log("❌ 查询失败 (尝试 {$retry_count}/{$max_retries}): " . $e->getMessage());
-                    
+
                     if ($retry_count < $max_retries) {
                         // 等待后重试
                         sleep(1);
@@ -168,16 +157,12 @@ class WC_Wonder_Payments_Result_Handler {
             }
             
             if ($retry_count >= $max_retries && $last_error) {
-                error_log('❌ 所有重试都失败了');
                 throw $last_error;
             }
 
             // 记录完整响应用于调试
-            error_log('Wonder Payments queryOrder Response: ' . print_r($response, true));
-
             // 检查响应结构
             if (!is_array($response)) {
-                error_log('❌ 响应不是数组: ' . gettype($response));
                 return array(
                     'success' => false,
                     'message' => '支付状态查询返回无效格式',
@@ -187,16 +172,11 @@ class WC_Wonder_Payments_Result_Handler {
 
             // 处理支付结果
             $result = $this->process_payment_result($order, $response);
-            error_log('处理结果: ' . print_r($result, true));
-            error_log('=== Wonder Payments check_payment_status 结束 ===');
+            $logger = $this->get_logger();
+            $logger->debug('Payment result processed', array( 'source' => 'wonder-payments' ));
             return $result;
 
         } catch (Exception $e) {
-            error_log('❌ 查询支付状态失败: ' . $e->getMessage());
-            error_log('❌ 异常类型: ' . get_class($e));
-            error_log('❌ 异常位置: ' . $e->getFile() . ':' . $e->getLine());
-            error_log('❌ 异常追踪: ' . $e->getTraceAsString());
-
             // 提供更友好的错误消息
             $error_message = '查询支付状态失败';
             if (strpos($e->getMessage(), 'cURL') !== false) {
@@ -222,15 +202,8 @@ class WC_Wonder_Payments_Result_Handler {
      */
     private function process_payment_result($order, $response) {
         $order_id = $order->get_id();
-
-        error_log('=== Wonder Payments process_payment_result 开始 ===');
-        error_log('订单ID: ' . $order_id);
-        error_log('响应结构: ' . print_r(array_keys($response), true));
-        error_log('完整响应: ' . print_r($response, true));
-
         // 检查响应是否包含错误
         if (isset($response['error'])) {
-            error_log('❌ 响应包含错误: ' . print_r($response['error'], true));
             return array(
                 'success' => false,
                 'message' => isset($response['message']) ? $response['message'] : '支付查询失败',
@@ -240,7 +213,6 @@ class WC_Wonder_Payments_Result_Handler {
 
         // 检查响应是否包含数据
         if (!isset($response['data'])) {
-            error_log('❌ 响应不包含data字段');
             return array(
                 'success' => false,
                 'message' => '支付状态查询返回无效数据',
@@ -250,8 +222,6 @@ class WC_Wonder_Payments_Result_Handler {
 
                 // 检查是否包含订单数据
                 if (!isset($response['data']['order'])) {
-                    error_log('❌ 响应不包含订单数据');
-                    error_log('data字段内容: ' . print_r($response['data'], true));
                     return array(
                             'success' => false,
                             'message' => '未找到订单支付信息',
@@ -260,15 +230,6 @@ class WC_Wonder_Payments_Result_Handler {
                 }
         
                 $order_data = $response['data']['order'];
-        
-                // 记录关键信息用于调试
-                error_log('订单关键信息:');
-                error_log('- correspondence_state: ' . (isset($order_data['correspondence_state']) ? $order_data['correspondence_state'] : '未找到'));
-                error_log('- state: ' . (isset($order_data['state']) ? $order_data['state'] : '未找到'));
-                error_log('- number: ' . (isset($order_data['number']) ? $order_data['number'] : '未找到'));
-                error_log('- paid_total: ' . (isset($order_data['paid_total']) ? $order_data['paid_total'] : '未找到'));
-                error_log('- unpaid_total: ' . (isset($order_data['unpaid_total']) ? $order_data['unpaid_total'] : '未找到'));
-                error_log('- transactions: ' . (isset($order_data['transactions']) ? print_r($order_data['transactions'], true) : '未找到'));
         // 获取订单状态 - 尝试多种可能的字段
         $payment_status = 'unknown';
         
@@ -277,26 +238,21 @@ class WC_Wonder_Payments_Result_Handler {
         foreach ($status_fields as $field) {
             if (isset($order_data[$field])) {
                 $payment_status = strtolower($order_data[$field]);
-                error_log("找到状态字段 '{$field}': {$payment_status}");
                 break;
             }
         }
 
         // 如果还是unknown，检查是否有其他指示状态的字段
         if ($payment_status === 'unknown') {
-            error_log('未找到标准状态字段，检查其他字段:');
             foreach ($order_data as $key => $value) {
                 if (is_string($value) && (strpos($key, 'state') !== false || strpos($key, 'status') !== false)) {
                     $payment_status = strtolower($value);
-                    error_log("找到状态相关字段 '{$key}': {$payment_status}");
                     break;
                 }
             }
         }
 
         // 记录支付状态
-        error_log("订单 {$order_id} 支付状态: {$payment_status}");
-
         switch ($payment_status) {
             case 'paid':
             case 'completed':
@@ -304,8 +260,8 @@ class WC_Wonder_Payments_Result_Handler {
             case 'success':
                 // 检查是否已经支付过
                 if (!$order->is_paid()) {
-                    error_log('✅ 订单支付成功，更新订单状态');
-                    $order->update_status('completed', __('通过 Wonder Payments 完成支付', 'wonder-payment-for-woocommerce'));
+                    /* translators: Order status when payment is completed via Wonder Payments */
+                    $order->update_status('completed', __('通过 Wonder Payments 完成支付', 'wonder-payments'));
 
                     // 保存交易信息 - 优先保存交易UUID，如果没有则保存订单号
                     $transaction_id = '';
@@ -313,31 +269,28 @@ class WC_Wonder_Payments_Result_Handler {
                         // 保存第一个交易的UUID
                         $transaction_id = $order_data['transactions'][0]['uuid'];
                         update_post_meta($order_id, '_wonder_transaction_id', $transaction_id);
-                        error_log('保存交易UUID: ' . $transaction_id);
                     } elseif (isset($order_data['number'])) {
                         // 如果没有交易UUID，保存订单号
                         $transaction_id = $order_data['number'];
                         update_post_meta($order_id, '_wonder_transaction_id', $transaction_id);
-                        error_log('保存订单号作为交易ID: ' . $transaction_id);
                     }
 
                     // 同时保存订单号（用于查询）
                     if (isset($order_data['number'])) {
                         update_post_meta($order_id, '_wonder_order_number', $order_data['number']);
+                    } else {
                     }
 
                     // 添加订单备注
                     $note = $this->build_payment_note($order_data);
                     $order->add_order_note($note);
-                    error_log('添加订单备注: ' . $note);
 
                     // 清空购物车
                     if (WC()->cart) {
                         WC()->cart->empty_cart();
-                        error_log('清空购物车');
                     }
                 } else {
-                    error_log('订单已经支付过');
+                    // 订单已经支付过，不需要重复处理
                 }
 
                 return array(
@@ -352,9 +305,9 @@ class WC_Wonder_Payments_Result_Handler {
             case 'unpaid':
             case 'waiting':
                 // 订单仍在处理中
-                error_log('⏳ 订单支付处理中');
                 if ($order->get_status() !== 'pending') {
-                    $order->update_status('pending', '等待支付确认');
+                    /* translators: Order status when payment is pending confirmation */
+                    $order->update_status('pending', __('等待支付确认', 'wonder-payments'));
                 }
 
                 return array(
@@ -369,13 +322,12 @@ class WC_Wonder_Payments_Result_Handler {
             case 'voided':
             case 'expired':
                 // 支付失败
-                error_log('❌ 订单支付失败');
-                $order->update_status('failed', '支付失败');
+                /* translators: Order status when payment fails */
+                $order->update_status('failed', __('支付失败', 'wonder-payments'));
 
                 $failure_reason = isset($order_data['failure_reason']) ? $order_data['failure_reason'] : '';
                 if ($failure_reason) {
                     $order->add_order_note("支付失败原因: {$failure_reason}");
-                    error_log('支付失败原因: ' . $failure_reason);
                 }
 
                 return array(
@@ -387,8 +339,10 @@ class WC_Wonder_Payments_Result_Handler {
 
             default:
                 // 未知状态
-                error_log('❓ 未知支付状态: ' . $payment_status);
-                $order->add_order_note("未知支付状态: {$payment_status}");
+                $logger = $this->get_logger();
+                $logger->debug('未知支付状态: ' . $payment_status, array( 'source' => 'wonder-payments' ));
+                /* translators: %s: unknown payment status */
+                $order->add_order_note(sprintf(__('未知支付状态: %s', 'wonder-payments'), $payment_status));
 
                 // 检查是否有其他信息可以帮助诊断
                 $debug_info = [];
@@ -397,11 +351,10 @@ class WC_Wonder_Payments_Result_Handler {
                         $debug_info[$field] = $order_data[$field];
                     }
                 }
-                error_log('订单调试信息: ' . print_r($debug_info, true));
 
                 return array(
                     'success' => false,
-                    'message' => '支付状态未知，请稍后查看',
+                    'message' => __('支付状态未知，请稍后查看', 'wonder-payments'),
                     'status' => 'unknown',
                     'redirect_url' => $order->get_checkout_order_received_url()
                 );
@@ -461,11 +414,11 @@ class WC_Wonder_Payments_Result_Handler {
         <div class="order-info">
             <div class="info-row">
                 <span class="label">订单号：</span>
-                <span class="value">#<?php echo $order_id; ?></span>
+                <span class="value">#<?php echo esc_html($order_id); ?></span>
             </div>
             <div class="info-row">
                 <span class="label">订单金额：</span>
-                <span class="value"><?php echo wc_price($order->get_total()); ?></span>
+                <span class="value"><?php echo wp_kses_post(wc_price($order->get_total())); ?></span>
             </div>
             <div class="info-row">
                 <span class="label">支付方式：</span>
@@ -487,8 +440,8 @@ class WC_Wonder_Payments_Result_Handler {
 
             // 订单信息
             const orderData = {
-                order_id: <?php echo $order_id; ?>,
-                order_key: '<?php echo $order_key; ?>'
+                order_id: <?php echo (int)$order_id; ?>,
+                order_key: '<?php echo esc_js($order_key); ?>'
             };
 
             // 更新页面状态
@@ -514,11 +467,11 @@ class WC_Wonder_Payments_Result_Handler {
             function showActionButtons() {
                 const buttonsHtml = `
                     <div style="margin-top: 20px;">
-                        <button onclick="window.location.href='<?php echo $order->get_checkout_payment_url(); ?>'" 
+                        <button onclick="window.location.href='<?php echo esc_url($order->get_checkout_payment_url()); ?>'"
                                 style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; margin-right: 10px; cursor: pointer;">
                             重新支付
                         </button>
-                        <button onclick="window.location.href='<?php echo home_url('/'); ?>'" 
+                        <button onclick="window.location.href='<?php echo esc_url(home_url('/')); ?>'"
                                 style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer;">
                             返回首页
                         </button>
@@ -535,7 +488,7 @@ class WC_Wonder_Payments_Result_Handler {
                 updateStatus('正在查询支付状态... (' + checkCount + '/' + maxChecks + ')');
 
                 // 发送查询请求
-                fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -544,7 +497,7 @@ class WC_Wonder_Payments_Result_Handler {
                         'action': 'wonder_payments_check_status',
                         'order_id': orderData.order_id,
                         'order_key': orderData.order_key,
-                        'nonce': '<?php echo wp_create_nonce('wonder_payments_check_status'); ?>'
+                        'nonce': '<?php echo esc_js(wp_create_nonce('wonder_payments_check_status')); ?>'
                     })
                 })
                     .then(response => {
@@ -563,7 +516,7 @@ class WC_Wonder_Payments_Result_Handler {
 
                             // 2秒后跳转
                             setTimeout(() => {
-                                window.location.href = data.redirect_url || '<?php echo $order->get_checkout_order_received_url(); ?>';
+                                window.location.href = data.redirect_url || '<?php echo esc_url($order->get_checkout_order_received_url()); ?>';
                             }, 2000);
                         } else if (data.status === 'pending' && checkCount < maxChecks) {
                             // 支付处理中，继续轮询
@@ -692,7 +645,7 @@ class WC_Wonder_Payments_Result_Handler {
      * 跳转到感谢页面
      */
     private function redirect_to_thankyou_page($order) {
-        wp_redirect($order->get_checkout_order_received_url());
+        wp_safe_redirect($order->get_checkout_order_received_url());
         exit;
     }
 }
