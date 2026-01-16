@@ -466,32 +466,32 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
     
     /**
      * 获取自定义状态
-     * 返回: 
-     * 1. 启用 + 未配置 AppID → "需采取行动" (Action Needed)
-     * 2. 启用 + 已配置 AppID → "已激活" (Activated)
-     * 3. 禁用 → "未激活" (Inactive)
+     * 返回:
+     * 1. 启用 + 未配置 AppID → "Action is needed" (Action Needed)
+     * 2. 启用 + 已配置 AppID → "Active" (Activated)
+     * 3. 禁用 → "Inactive" (Inactive)
      */
     public function get_custom_status() {
         if ($this->enabled !== 'yes') {
             return array(
-                'text' => __('未激活', 'wonder-payments'),
+                'text' => __('Inactive', 'wonder-payments'),
                 'status' => 'inactive',
                 'color' => '#a7aaad',
                 'icon' => 'dashicons-dismiss'
             );
         }
-        
+
         if (!$this->is_appid_configured()) {
             return array(
-                'text' => __('需采取行动', 'wonder-payments'),
+                'text' => __('Action needed', 'wonder-payments'),
                 'status' => 'action_needed',
                 'color' => '#d63638',
                 'icon' => 'dashicons-warning'
             );
         }
-        
+
         return array(
-            'text' => __('已激活', 'wonder-payments'),
+            'text' => __('Active', 'wonder-payments'),
             'status' => 'activated',
             'color' => '#00a32a',
             'icon' => 'dashicons-yes-alt'
@@ -530,13 +530,19 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         // 检查是否设置了必要参数
         if (empty($this->app_id) || empty($this->private_key)) {
             wc_add_notice(__('Payment gateway is not configured properly. Please check your App ID and Private Key.', 'wonder-payments'), 'error');
-            return;
+            return array(
+                'result' => 'failure',
+                'message' => __('Payment gateway is not configured properly. Please check your App ID and Private Key.', 'wonder-payments')
+            );
         }
 
         // 检查SDK是否存在
         if (!class_exists('PaymentSDK')) {
             wc_add_notice(__('Payment gateway SDK is not available. Please ensure the SDK files are properly included.', 'wonder-payments'), 'error');
-            return;
+            return array(
+                'result' => 'failure',
+                'message' => __('Payment gateway SDK is not available. Please ensure the SDK files are properly included.', 'wonder-payments')
+            );
         }
 
         try {
@@ -553,13 +559,19 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             $privateKey = trim($this->private_key);
             if (empty($privateKey)) {
                 wc_add_notice(__('Private key is not set. Please configure your payment gateway.', 'wonder-payments'), 'error');
-                return;
+                return array(
+                    'result' => 'failure',
+                    'message' => __('Private key is not set. Please configure your payment gateway.', 'wonder-payments')
+                );
             }
 
             $privateKeyId = openssl_pkey_get_private($privateKey);
             if (!$privateKeyId) {
                 wc_add_notice(__('Invalid private key format. Please reconfigure your payment gateway.', 'wonder-payments'), 'error');
-                return;
+                return array(
+                    'result' => 'failure',
+                    'message' => __('Invalid private key format. Please reconfigure your payment gateway.', 'wonder-payments')
+                );
             }
             openssl_pkey_free($privateKeyId);
 
@@ -592,7 +604,10 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
             if (!$sdk) {
                 wc_add_notice(__('Payment gateway SDK initialization failed.', 'wonder-payments'), 'error');
-                return;
+                return array(
+                    'result' => 'failure',
+                    'message' => __('Payment gateway SDK initialization failed.', 'wonder-payments')
+                );
             }
 
             // 构建订单数据
@@ -670,12 +685,19 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
                     $logger->error('Payment Error: ' . $error_msg, array( 'source' => 'wonder-payments' ));
                     wc_add_notice($error_msg, 'error');
-                    return;
+                    return array(
+                        'result' => 'failure',
+                        'message' => $error_msg
+                    );
                 }
         } catch (Exception $e) {
             /* translators: %s: error message */
-            wc_add_notice(sprintf(__('Payment processing failed: %s', 'wonder-payments'), $e->getMessage()), 'error');
-            return;
+            $error_message = sprintf(__('Payment processing failed: %s', 'wonder-payments'), $e->getMessage());
+            wc_add_notice($error_message, 'error');
+            return array(
+                'result' => 'failure',
+                'message' => $error_message
+            );
         }
     }
 
@@ -796,14 +818,13 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             // 验证退款金额（使用小的容差值避免浮点数精度问题）
             $epsilon = 0.01; // 容差值
             if ($amount - $available_refund > $epsilon) {
-                return new WP_Error('error',
-                    sprintf(
-                        /* translators: %1$s: available amount, %2$s: requested amount */
-                        __('Refund amount exceeds available amount. Available: %1$s, Requested: %2$s', 'wonder-payments'),
-                        wc_price($available_refund),
-                        wc_price($amount)
-                    )
+                $refund_error = sprintf(
+                    /* translators: %1$s: available amount, %2$s: requested amount */
+                    __('Refund amount exceeds available amount. Available: %1$s, Requested: %2$s', 'wonder-payments'),
+                    wc_price($available_refund),
+                    wc_price($amount)
                 );
+                return new WP_Error('error', $refund_error);
             }
 
             // 步骤2: 使用支付交易UUID进行退款
@@ -836,14 +857,13 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             // 检查响应
             if (isset($response['code']) && $response['code'] == 200) {
                 // 退款成功
-                $order->add_order_note(
-                        sprintf(
-                                /* translators: %1$s: refund amount, %2$s: refund reason */
-                                __('Wonder Payments refund successful. Amount: %1$s, Reason: %2$s', 'wonder-payments'),
-                                wc_price($amount),
-                                $reason ? $reason : 'N/A'
-                        )
+                $refund_note = sprintf(
+                    /* translators: %1$s: refund amount, %2$s: refund reason */
+                    __('Wonder Payments refund successful. Amount: %1$s, Reason: %2$s', 'wonder-payments'),
+                    wc_price($amount),
+                    $reason ? $reason : 'N/A'
                 );
+                $order->add_order_note($refund_note);
 
                 // 保存退款ID（如果有）
                 if (isset($response['data']['order']['transactions'])) {
@@ -902,14 +922,13 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                     $error_message = 'Refund failed, duplicate transaction. Refunds of the same amount are not allowed within five minutes.';
                 }
 
-                $order->add_order_note(
-                        sprintf(
-                                /* translators: %1$s: refund amount, %2$s: error message */
-                                __('Wonder Payments refund failed. Amount: %1$s, Error: %2$s', 'wonder-payments'),
-                                wc_price($amount),
-                                $error_message
-                        )
+                $refund_note = sprintf(
+                    /* translators: %1$s: refund amount, %2$s: error message */
+                    __('Wonder Payments refund failed. Amount: %1$s, Error: %2$s', 'wonder-payments'),
+                    wc_price($amount),
+                    $error_message
                 );
+                $order->add_order_note($refund_note);
 
                 return new WP_Error('refund_error', $error_message);
             }

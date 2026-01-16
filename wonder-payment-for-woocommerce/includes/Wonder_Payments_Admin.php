@@ -636,6 +636,12 @@ class Wonder_Payments_Admin {
                 color: white;
             }
 
+            .menu-item.locked {
+                opacity: 0.5;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+
             /* 上层卡片 - 包含头部和内容区 */
             .floating-card {
                 flex: 1;
@@ -848,6 +854,14 @@ class Wonder_Payments_Admin {
                     window.wonderPaymentsCurrentUuid = null;
                 }
 
+                var isMenuLocked = false;
+                function setMenuLock(locked) {
+                    isMenuLocked = locked;
+                    var $lockedItems = $('.menu-item[data-tab="scan"], .menu-item[data-tab="business"]');
+                    $lockedItems.toggleClass('locked', locked);
+                    $lockedItems.attr('aria-disabled', locked ? 'true' : 'false');
+                }
+
                 // 页面加载时检查登录状态并直接跳转到合适的页面
                 var accessToken = localStorage.getItem('wonder_access_token');
                 var businessId = localStorage.getItem('wonder_business_id');
@@ -867,6 +881,7 @@ class Wonder_Payments_Admin {
                 // 先隐藏所有面板，避免闪烁
                 $('.content-panel').removeClass('active');
                 $('.menu-item').removeClass('active');
+                setMenuLock(false);
 
                 // 根据状态直接显示合适的页面
                 if (accessToken && businessId) {
@@ -952,6 +967,7 @@ class Wonder_Payments_Admin {
                     localStorage.removeItem('wonder_webhook_key');
 
                     console.log('All localStorage data cleared');
+                    setMenuLock(false);
 
                     // 调用后端清除所有数据（包括Settings）
                     $.ajax({
@@ -1010,6 +1026,10 @@ class Wonder_Payments_Admin {
                         var tabId = $this.data('tab');
 
                         console.log('Menu item clicked:', tabId);
+                        if (isMenuLocked && (tabId === 'scan' || tabId === 'business')) {
+                            console.log('Menu locked, ignoring click for:', tabId);
+                            return;
+                        }
 
                         // 清除轮询定时器（如果存在）
                         if (window.wonderPaymentsPollInterval) {
@@ -1394,6 +1414,14 @@ class Wonder_Payments_Admin {
 
                                                                                 });
 
+                                                                            } else if (!response.success && response.data && response.data.message) {
+
+                                                                                if (response.data.message.indexOf('Access token expired') !== -1) {
+                                                                                    localStorage.removeItem('wonder_access_token');
+                                                                                    localStorage.removeItem('wonder_business_id');
+                                                                                }
+
+                                                                                $('.cards-container').html('<div class="no-business">' + response.data.message + '</div>');
                                                                             } else {
 
                                                                                 $('.cards-container').html('<div class="no-business">No business found</div>');
@@ -1682,12 +1710,14 @@ class Wonder_Payments_Admin {
                 								                								$('#private-key-input').val(privateKey);
 
                 								// 根据是否已生成app_id设置按钮状态
-                								if (savedAppId) {
-                									$('#app-id-input').val(savedAppId);
-                									$('#create-app-id-btn').text('Created').prop('disabled', true);
-                								} else {
-                									$('#create-app-id-btn').text('Create').prop('disabled', false);
-                								}
+                                if (savedAppId) {
+                                    $('#app-id-input').val(savedAppId);
+                                    $('#create-app-id-btn').text('Created').prop('disabled', true);
+                                    setMenuLock(true);
+                                } else {
+                                    $('#create-app-id-btn').text('Create').prop('disabled', false);
+                                    setMenuLock(false);
+                                }
                 						} else {
                 						}
                 					},
@@ -1733,6 +1763,7 @@ class Wonder_Payments_Admin {
                                 if (appId) {
                                     $('#app-id-input').val(appId);
                                     $('#create-app-id-btn').text('Created').prop('disabled', true);
+                                    setMenuLock(true);
                                     
                                     // 填充webhook_key
                                     if (webhookKey) {
