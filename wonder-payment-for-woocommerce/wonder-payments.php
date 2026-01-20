@@ -9,7 +9,7 @@ License: GPL v2 or later
 Text Domain: wonder-payments
 */
 
-// 防止直接访问
+// Note.
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -22,7 +22,7 @@ if (!defined('WONDER_PAYMENTS_BLOCKS_LOG_FILE')) {
 }
 
 /**
- * 获取 WooCommerce Logger 实例
+ * Note.
  *
  * @return WC_Logger
  */
@@ -30,21 +30,21 @@ function wonder_payments_get_logger() {
     return wc_get_logger();
 }
 
-// 在你的插件主文件顶部（wonder-payments.php）
+// Note.
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 } else {
-    // 尝试直接包含SDK文件
+    // Note.
     if (file_exists(__DIR__ . '/vendor/wonderpayment/sdk/src/PaymentSDK.php')) {
         require_once __DIR__ . '/vendor/wonderpayment/sdk/src/PaymentSDK.php';
     }
 }
 
-// 检查 WooCommerce 是否激活
-// 使用优先级 0 确保在 WooCommerce 完全初始化后再加载
+// Note.
+// Note.
 add_action('plugins_loaded', 'wonder_payments_init_gateway', 0);
 
-// 声明与区块结账兼容，避免后台显示“不兼容”
+// Note.
 add_action('before_woocommerce_init', function() {
     if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
         $plugin_file = plugin_basename(__FILE__);
@@ -59,67 +59,86 @@ function wonder_payments_init_gateway()
         return;
     }
 
-    // 包含必要的文件
+    // Note.
     require_once dirname(__FILE__) . '/includes/class-wonder-payments-gateway.php';
     require_once dirname(__FILE__) . '/includes/Wonder_Payments_Admin.php';
 
-    // WooCommerce Blocks 兼容支持
+    // Note.
     add_action('woocommerce_blocks_payment_method_type_registration', 'wonder_payments_register_blocks_support');
 
-    // 添加支付网关
+    // Note.
     add_filter('woocommerce_payment_gateways', 'wonder_payments_add_gateway');
 
-    // 添加自定义管理链接 - 尝试多个可能的过滤器
+    // Note.
+    add_action('wp_ajax_wonder_sync_order_status', 'wonder_payments_ajax_sync_order_status');
+
+    // Note.
     add_filter('woocommerce_payment_gateway_settings_link', 'wonder_payments_add_modal_link', 10, 2);
     add_filter('plugin_action_links', 'wonder_payments_plugin_action_links', 10, 4);
     add_filter('plugin_action_links_woocommerce/woocommerce.php', 'wonder_payments_gateway_menu_links', 10, 4);
     
-    // 修改支付网关标题，添加状态指示
+    // Note.
     add_filter('woocommerce_gateway_title', 'wonder_payments_add_status_to_title', 10, 2);
     
-    // 添加自定义状态列
+    // Note.
     add_filter('woocommerce_payment_gateways_setting_columns', 'wonder_payments_add_status_column');
     add_action('woocommerce_payment_gateways_setting_column_wonder_status', 'wonder_payments_render_status_column');
     
-    // 输出网关状态信息到 JavaScript
+    // Note.
     add_action('admin_footer', 'wonder_payments_output_gateway_status');}
 
 /**
- * 修改支付网关的管理链接，改为打开模态窗口
+ * Note.
  */
 function wonder_payments_add_modal_link($link, $gateway_id) {
     if ($gateway_id === 'wonder_payments') {
-        // 返回自定义的链接，点击打开模态窗口
+        // Note.
         $link = '<a href="#" class="wonder-payments-manage-link" data-gateway-id="wonder-payments">' . esc_html__('Manage', 'wonder-payments') . '</a>';
     }
     return $link;
 }
 
+/**
+ * Note.
+ */
+function wonder_payments_ajax_sync_order_status() {
+    if (!class_exists('WC_Payment_Gateway')) {
+        wp_send_json_error('WooCommerce not loaded');
+    }
+
+    if (!class_exists('WC_Wonder_Payments_Gateway')) {
+        require_once dirname(__FILE__) . '/includes/class-wonder-payments-gateway.php';
+    }
+
+    $gateway = new WC_Wonder_Payments_Gateway();
+    $gateway->ajax_sync_order_status();
+}
+
 
 /**
- * 修改插件操作链接
+ * Note.
  */
 function wonder_payments_plugin_action_links($actions, $plugin_file, $plugin_data, $context) {
-    // 检查是否是我们的插件
+    // Note.
     if (strpos($plugin_file, 'wonder-payments.php') !== false && $context === 'active') {
-        // 添加自定义链接到插件列表页面
-        $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('查看定价和费用', 'wonder-payments') . '</a>';
-        $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('了解更多', 'wonder-payments') . '</a>';
-        $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('查看服务条款', 'wonder-payments') . '</a>';
+        // Note.
+        $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonder-payments') . '</a>';
+        $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonder-payments') . '</a>';
+        $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonder-payments') . '</a>';
     }
 
     return $actions;
 }
 
 /**
- * 为WooCommerce支付网关三点菜单添加链接
+ * Note.
  */
 function wonder_payments_gateway_menu_links($actions, $plugin_file, $plugin_data, $context) {
-    // 添加自定义链接
-    $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('查看定价和费用', 'wonder-payments') . '</a>';
-    $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('了解更多', 'wonder-payments') . '</a>';
-    $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('查看服务条款', 'wonder-payments') . '</a>';
-    $actions['hide_suggestions'] = '<a href="#" class="wonder-payments-hide-suggestions" data-nonce="' . wp_create_nonce('wonder_payments_hide_suggestions') . '">' . esc_html__('隐藏建议', 'wonder-payments') . '</a>';
+    // Note.
+    $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonder-payments') . '</a>';
+    $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonder-payments') . '</a>';
+    $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonder-payments') . '</a>';
+    $actions['hide_suggestions'] = '<a href="#" class="wonder-payments-hide-suggestions" data-nonce="' . wp_create_nonce('wonder_payments_hide_suggestions') . '">' . esc_html__('Hide suggestions', 'wonder-payments') . '</a>';
 
     return $actions;
 }
@@ -143,7 +162,7 @@ function wonder_payments_register_blocks_support($payment_method_registry) {
 }
 
 /**
- * 输出网关状态信息到 JavaScript
+ * Note.
  */
 function wonder_payments_output_gateway_status() {
     // @codingStandardsIgnoreLine WordPress.Security.NonceVerification.Recommended - Nonce verification not required for GET parameter checks
@@ -157,7 +176,7 @@ function wonder_payments_output_gateway_status() {
     $private_key = isset($settings['private_key']) ? $settings['private_key'] : '';
     ?>
     <script>
-        // Wonder Payments 网关状态
+        // Note.
         window.wonderPaymentsGatewayStatus = {
             enabled: '<?php echo esc_js($enabled); ?>',
             app_id: '<?php echo esc_js($app_id); ?>',
@@ -166,44 +185,44 @@ function wonder_payments_output_gateway_status() {
         
         console.log('Wonder Payments Gateway Status:', window.wonderPaymentsGatewayStatus);
         
-        // 等待 jQuery 加载完成后添加状态标记
+        // Note.
         (function($) {
             $(document).ready(function() {
                 console.log('=== Wonder Payments: jQuery ready in status badge function ===');
                 
-                // 初始状态
+                // Note.
                 var currentEnabled = window.wonderPaymentsGatewayStatus && window.wonderPaymentsGatewayStatus.enabled === 'yes';
                 var currentAppId = window.wonderPaymentsGatewayStatus ? window.wonderPaymentsGatewayStatus.app_id : '';
                 var currentPrivateKey = window.wonderPaymentsGatewayStatus ? window.wonderPaymentsGatewayStatus.private_key : '';
                 
                 console.log('=== Wonder Payments: Initial state - enabled:', currentEnabled, ', app_id:', currentAppId, ', private_key:', currentPrivateKey, '===');
                 
-                // 监听启用/禁用开关的变化
+                // Note.
                 $(document).on('change', '.woocommerce-input-toggle', function() {
                     var $toggle = $(this);
                     var $row = $toggle.closest('.woocommerce-list__item');
                     var rowId = $row.attr('id');
                     
                     if (rowId === 'wonder_payments') {
-                        // 检查开关是否启用
+                        // Note.
                         var isEnabled = $toggle.hasClass('woocommerce-input-toggle--enabled');
                         console.log('=== Wonder Payments: Toggle changed, enabled:', isEnabled, '===');
                         
-                        // 更新状态
+                        // Note.
                         currentEnabled = isEnabled;
                         
-                        // 立即更新状态标记
+                        // Note.
                         updateStatusBadge();
                     }
                 });
                 
-                // 监听 AJAX 请求完成事件
+                // Note.
                 $(document).ajaxComplete(function(event, xhr, settings) {
                     console.log('=== Wonder Payments: AJAX request completed ===');
                     console.log('=== Wonder Payments: URL:', settings.url, '===');
                     console.log('=== Wonder Payments: Data:', settings.data, '===');
                     
-                    // 检查是否是保存 AppID 或保存设置的请求
+                    // Note.
                     var action = '';
                     if (settings.data && typeof settings.data === 'string') {
                         var match = settings.data.match(/action=([^&]+)/);
@@ -222,19 +241,19 @@ function wonder_payments_output_gateway_status() {
                         console.log('=== Wonder Payments: Configuration saved via AJAX ===');
                         console.log('=== Wonder Payments: Response:', xhr.responseJSON, '===');
                         
-                        // 延迟执行，等待保存完成
+                        // Note.
                         setTimeout(function() {
                             console.log('=== Wonder Payments: Reloading configuration ===');
                             reloadConfiguration();
                         }, 500);
                     }
                     
-                    // 检查是否是清除所有数据的请求
+                    // Note.
                     if (action === 'wonder_payments_clear_all') {
                         console.log('=== Wonder Payments: All data cleared via AJAX ===');
                         console.log('=== Wonder Payments: Response:', xhr.responseJSON, '===');
                         
-                        // 延迟执行，等待清除完成
+                        // Note.
                         setTimeout(function() {
                             console.log('=== Wonder Payments: Reloading configuration after clear ===');
                             reloadConfiguration();
@@ -242,35 +261,35 @@ function wonder_payments_output_gateway_status() {
                     }
                 });
                 
-                // 监听 Settings 面板的保存按钮
+                // Note.
                 $(document).on('click', '#panel-settings .btn-primary', function() {
                     console.log('=== Wonder Payments: Settings save button clicked ===');
                     
-                    // 延迟执行，等待保存完成
+                    // Note.
                     setTimeout(function() {
                         console.log('=== Wonder Payments: Reloading configuration after settings save ===');
                         reloadConfiguration();
                     }, 1000);
                 });
                 
-                // 监听表单提交事件
+                // Note.
                 $(document).on('submit', '#wonder-modal-body form', function() {
                     console.log('=== Wonder Payments: Form submitted ===');
                     
-                    // 延迟执行，等待保存完成
+                    // Note.
                     setTimeout(function() {
                         console.log('=== Wonder Payments: Reloading configuration after form submit ===');
                         reloadConfiguration();
                     }, 1000);
                 });
                 
-                // 监听模态框关闭事件，重新加载配置
+                // Note.
                 $(document).on('click', '#wonder-settings-modal .components-modal__header button', function() {
                     console.log('=== Wonder Payments: Modal closed, reloading configuration ===');
                     reloadConfiguration();
                 });
                 
-                // 重新加载配置的函数
+                // Note.
                 function reloadConfiguration() {
                     $.ajax({
                         url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
@@ -288,7 +307,7 @@ function wonder_payments_output_gateway_status() {
                                 
                                 console.log('=== Wonder Payments: Updated state - enabled:', currentEnabled, ', app_id:', currentAppId, ', private_key:', currentPrivateKey, '===');
                                 
-                                // 更新状态标记
+                                // Note.
                                 updateStatusBadge();
                             }
                         },
@@ -298,11 +317,11 @@ function wonder_payments_output_gateway_status() {
                     });
                 }
                 
-                // 定义更新状态标记的函数
+                // Note.
                 function updateStatusBadge() {
                     console.log('=== Wonder Payments: Updating status badge, enabled:', currentEnabled, ', app_id:', currentAppId, ', private_key:', currentPrivateKey, '===');
                     
-                    // 查找所有网关行
+                    // Note.
                     var $rows = $('.woocommerce-list__item');
                     
                     if ($rows.length > 0) {
@@ -310,29 +329,29 @@ function wonder_payments_output_gateway_status() {
                             var $row = $(this);
                             var rowId = $row.attr('id');
                             
-                            // 查找包含 "Wonder Payment" 文本的标题元素
+                            // Note.
                             var $title = $row.find('h1, h2, h3, h4, h5, h6, .woocommerce-list__item-title, .woocommerce-list__item-name, .components-card__header-title').first();
                             var titleText = $title.text().trim();
                             
-                            // 如果标题包含 "Wonder Payment"
+                            // Note.
                             if (titleText.indexOf('Wonder Payment') !== -1) {
                                 console.log('=== Wonder Payments: Found Wonder Payment row ===');
                                 
-                                // 移除旧的状态标记
+                                // Note.
                                 $title.find('.wonder-payments-status-badge').remove();
 
-                                // 添加状态标记
+                                // Note.
                                 if (currentEnabled) {
                                     if (currentAppId === '' || currentPrivateKey === '') {
-                                        // 启用但未配置，添加"Action is needed"标记
+                                        // Note.
                                         $title.append(' <span class="wonder-payments-status-badge wonder-payments-status-action-needed">Action needed</span>');
                                         console.log('=== Wonder Payments: Added "Action is needed" badge ===');
                                     } else {
-                                        // 已配置，不添加任何标记
+                                        // Note.
                                         console.log('=== Wonder Payments: Configuration complete, no badge needed ===');
                                     }
                                 } else {
-                                    // 未启用，不添加任何标记
+                                    // Note.
                                     console.log('=== Wonder Payments: Gateway not enabled, no badge needed ===');
                                 }
                             }
@@ -340,11 +359,11 @@ function wonder_payments_output_gateway_status() {
                     }
                 }
                 
-                // 延迟执行，等待 React 渲染完成
+                // Note.
                 setTimeout(function() {
                     console.log('=== Wonder Payments: Delayed execution started ===');
                     updateStatusBadge();
-                }, 2000); // 延迟 2 秒执行
+                }, 2000); // Note.
             });
         })(jQuery);
     </script>
@@ -352,7 +371,7 @@ function wonder_payments_output_gateway_status() {
 }
 
 /**
- * 添加自定义状态列
+ * Note.
  */
 function wonder_payments_add_status_column($columns) {
     $new_columns = array();
@@ -360,54 +379,54 @@ function wonder_payments_add_status_column($columns) {
     foreach ($columns as $key => $label) {
         $new_columns[$key] = $label;
         
-        // 在状态列后添加我们的自定义列
+        // Note.
         if ($key === 'status') {
-            $new_columns['wonder_status'] = __('配置状态', 'wonder-payments');
+            $new_columns['wonder_status'] = __('Configuration status', 'wonder-payments');
         }
     }
     return $new_columns;
 }
 
 /**
- * 输出自定义状态列内容
+ * Note.
  */
 function wonder_payments_render_status_column($gateway) {
     
     if ($gateway->id !== 'wonder_payments') {
-        // 其他支付网关不显示任何内容
+        // Note.
         echo '-';
         return;
     }
-    // 我们的支付网关显示自定义状态
+    // Note.
     if (method_exists($gateway, 'get_admin_status_html')) {
         echo wp_kses_post($gateway->get_admin_status_html());
     } else {
-        echo esc_html__('未知', 'wonder-payments');
+        echo esc_html__('Unknown', 'wonder-payments');
     }
 }
 
 /**
- * 为支付网关标题添加状态指示
+ * Note.
  */
 function wonder_payments_add_status_to_title($title, $gateway_id) {
     if ($gateway_id !== 'wonder_payments') {
         return $title;
     }
     
-    // 获取网关配置
+    // Note.
     $settings = get_option('woocommerce_wonder_payments_settings', array());
     $enabled = isset($settings['enabled']) ? $settings['enabled'] : 'no';
     $app_id = isset($settings['app_id']) ? $settings['app_id'] : '';
     $private_key = isset($settings['private_key']) ? $settings['private_key'] : '';
-    // 检查状态
+    // Note.
     if ($enabled === 'yes') {
         if (empty($app_id) || empty($private_key)) {
-            // 启用但未配置，添加"Action is needed"标记
+            // Note.
             $title .= ' <span class="wonder-payments-status-badge wonder-payments-status-action-needed">Action needed</span>';
         }
-        // 已配置，不添加任何标记（显示"已激活"）
+        // Note.
     }
-    // 未启用，不添加任何标记（显示"未激活"）
+    // Note.
 
     return $title;
 }
@@ -420,20 +439,20 @@ function wonder_payments_wc_notice()
     echo '</p></div>';
 }
 
-// 注册 AJAX 处理函数
+// Note.
 add_action('wp_ajax_wonder_generate_keys', 'wonder_ajax_generate_keys');
 add_action('wp_ajax_wonder_test_config', 'wonder_ajax_test_config');
 
-// 注册定时清理日志的定时任务
+// Note.
 add_action('init', 'wonder_payments_schedule_log_cleanup');
 
-// 注册定时检查过期订单的任务
+// Note.
 add_action('init', 'wonder_payments_schedule_order_expiry_check');
 
 function wonder_payments_schedule_log_cleanup()
 {
     if (!wp_next_scheduled('wonder_payments_daily_log_cleanup')) {
-        // 安排每天凌晨3点执行清理任务
+        // Note.
         wp_schedule_event(strtotime('tomorrow 3:00am'), 'daily', 'wonder_payments_daily_log_cleanup');
     }
 }
@@ -441,54 +460,54 @@ function wonder_payments_schedule_log_cleanup()
 function wonder_payments_schedule_order_expiry_check()
 {
     if (!wp_next_scheduled('wonder_payments_daily_order_expiry_check')) {
-        // 安排每天检查一次过期订单（降低频率以优化性能）
+        // Note.
         wp_schedule_event(time(), 'daily', 'wonder_payments_daily_order_expiry_check');
     }
 }
 
-// 执行日志清理
+// Note.
 add_action('wonder_payments_daily_log_cleanup', 'wonder_payments_clean_debug_log');
 
-// 执行过期订单检查
+// Note.
 add_action('wonder_payments_daily_order_expiry_check', 'wonder_payments_check_expired_orders');
 
-// 注册Deactivate AJAX处理
+// Note.
 add_action('wp_ajax_wonder_payments_deactivate', 'wonder_payments_deactivate_handler');
 
-// 注册隐藏建议AJAX处理
+// Note.
 add_action('wp_ajax_wonder_payments_hide_suggestions', 'wonder_payments_hide_suggestions_handler');
 
 /**
- * 隐藏建议处理函数
+ * Note.
  */
 function wonder_payments_hide_suggestions_handler() {
-    // 检查权限
+    // Note.
     if (!current_user_can('manage_woocommerce')) {
         wp_send_json_error(array('message' => 'Unauthorized'));
     }
 
-    // 检查nonce
+    // Note.
     check_ajax_referer('wonder_payments_hide_suggestions', 'security');
 
-    // 这里可以添加额外的逻辑，比如保存到数据库
-    // 目前只是返回成功
+    // Note.
+    // Note.
     wp_send_json_success(array('message' => 'Suggestions hidden'));
 }
 
 /**
- * Deactivate处理函数 - 删除App ID和所有配置信息
+ * Note.
  */
 function wonder_payments_deactivate_handler() {
-    // 检查权限
+    // Note.
     if (!current_user_can('manage_woocommerce')) {
         wp_send_json_error(array('message' => 'Unauthorized'));
     }
 
-    // 检查nonce
+    // Note.
     check_ajax_referer('wonder_payments_deactivate', 'security');
 
     try {
-        // 删除所有Wonder Payments相关的选项
+        // Note.
         delete_option('wonder_payments_app_id');
         delete_option('wonder_payments_private_key');
         delete_option('wonder_payments_public_key');
@@ -503,7 +522,7 @@ function wonder_payments_deactivate_handler() {
         delete_option('wonder_payments_qr_code_status');
         delete_option('wonder_payments_qr_code_login_status');
 
-        // 删除WooCommerce设置中的Wonder Payments配置
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         unset($settings['app_id']);
         unset($settings['private_key']);
@@ -511,7 +530,7 @@ function wonder_payments_deactivate_handler() {
         unset($settings['webhook_public_key']);
         update_option('woocommerce_wonder_payments_settings', $settings);
 
-        // 删除定时任务
+        // Note.
         wp_clear_scheduled_hook('wonder_payments_daily_log_cleanup');
         wp_clear_scheduled_hook('wonder_payments_hourly_order_expiry_check');
         wp_send_json_success(array('message' => 'Deactivated successfully'));
@@ -528,20 +547,20 @@ function wonder_payments_clean_debug_log()
         return;
     }
 
-    // 删除7天前的日志
-    $cutoff_time = time() - (7 * 24 * 60 * 60); // 7天前
+    // Note.
+    $cutoff_time = time() - (7 * 24 * 60 * 60); // 7Note.
 
     try {
-        // 读取日志文件
+        // Note.
         $lines = file($log_file);
         if ($lines === false) {
             return;
         }
 
-        // 找到7天前的第一行
+        // Note.
         $keep_from = 0;
         for ($i = 0; $i < count($lines); $i++) {
-            // 提取日志时间戳
+            // Note.
             if (preg_match('/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/', $lines[$i], $matches)) {
                 $log_time = strtotime($matches[1]);
                 if ($log_time && $log_time > $cutoff_time) {
@@ -551,12 +570,12 @@ function wonder_payments_clean_debug_log()
             }
         }
 
-        // 如果有需要保留的行，重写文件
+        // Note.
         if ($keep_from > 0) {
             $keep_lines = array_slice($lines, $keep_from);
             file_put_contents($log_file, implode('', $keep_lines));
         } else {
-            // 如果所有日志都是7天前的，清空文件
+            // Note.
             file_put_contents($log_file, '');
         }
     } catch (Exception $e) {
@@ -564,11 +583,11 @@ function wonder_payments_clean_debug_log()
 }
 
 /**
- * 检查并取消过期的Wonder Payments订单
+ * Note.
  */
 function wonder_payments_check_expired_orders()
 {
-    // 获取due_date设置
+    // Note.
     $settings = get_option('woocommerce_wonder_payments_settings', array());
     $due_days = isset($settings['due_date']) ? intval($settings['due_date']) : 30;
 
@@ -576,15 +595,16 @@ function wonder_payments_check_expired_orders()
         $due_days = 30;
     }
 
-    // 查找所有待支付的Wonder Payments订单
+    // Note.
+    // phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Meta query is required for filtering by payment method.
     $args = array(
         'status' => array('pending', 'on-hold'),
-        'limit' => 50,  // 减少限制数量，提高性能
+        'limit' => 50,  // Note.
         'orderby' => 'date',
         'order' => 'ASC',
         'type' => 'shop_order',
-        'date_created' => '>' . gmdate('Y-m-d', strtotime('-30 days')),  // 只查询30天内的订单
-        // @codingStandardsIgnoreLine WordPress.DB.SlowDBQuery.slow_db_query_meta_query - meta_query 是 WooCommerce 订单查询的标准做法，已通过限制查询范围和频率进行优化
+        'date_created' => '>' . gmdate('Y-m-d', strtotime('-30 days')),  // Note.
+        // Note.
         'meta_query' => array(
             'relation' => 'AND',
             array(
@@ -596,29 +616,30 @@ function wonder_payments_check_expired_orders()
     );
 
     $orders = wc_get_orders($args);
+    // phpcs:enable WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 
     if (empty($orders)) {
         return;
     }
 
     $cancelled_count = 0;
-    $cutoff_time = time() - ($due_days * 24 * 60 * 60); // due_days天前
+    $cutoff_time = time() - ($due_days * 24 * 60 * 60); // due_daysNote.
 
     foreach ($orders as $order) {
         $order_id = $order->get_id();
         $order_date = $order->get_date_created();
         $order_timestamp = $order_date->getTimestamp();
 
-        // 检查订单是否过期
+        // Note.
         if ($order_timestamp < $cutoff_time) {
-            // 取消订单
+            // Note.
             $order->update_status('cancelled', sprintf(
                 /* translators: %s: number of days */
                 __('Order cancelled automatically due to payment expiry (%s days)', 'wonder-payments'),
                 $due_days
             ));
 
-            // 添加订单备注
+            // Note.
             $order->add_order_note(sprintf(
                 /* translators: %1$s: order creation date, %2$s: due days */
                 __('Order created on %1$s and cancelled after %2$s days due to payment expiry.', 'wonder-payments'),
@@ -640,26 +661,26 @@ function wonder_payments_check_expired_orders()
 
 
 /**
- * 生成密钥的 AJAX 处理函数 - 使用 SDK
+ * Note.
  */
 function wonder_ajax_generate_keys()
 {
-    // 检查权限
+    // Note.
     if (!current_user_can('manage_woocommerce')) {
         wp_die('Unauthorized');
     }
 
-    // 检查 nonce
+    // Note.
     check_ajax_referer('wonder_generate_keys', 'security');
 
     try {
-        // 始终使用 SDK 生成新的密钥对
+        // Note.
         $keyPair = PaymentSDK::generateKeyPair(4096);
 
         $private_key = $keyPair['private_key'];
         $public_key = $keyPair['public_key'];
 
-        // 更新插件设置中的公钥和私钥
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $settings['generated_public_key'] = $public_key;
         $settings['private_key'] = $private_key;
@@ -679,23 +700,25 @@ function wonder_ajax_generate_keys()
 }
 
 /**
- * 测试配置的 AJAX 处理函数 - 使用SDK进行验证
+ * Note.
  */
 function wonder_ajax_test_config()
 {
-    // 检查权限
+    // Note.
     if (!current_user_can('manage_woocommerce')) {
         wp_die('Unauthorized');
     }
 
-    // 检查 nonce
+    // Note.
     check_ajax_referer('wonder_test_config', 'security');
 
-    // 获取 POST 数据
+    // Note.
     $app_id = isset($_POST['app_id']) ? sanitize_text_field(wp_unslash($_POST['app_id'])) : '';
-    // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - 私钥是密钥数据，需要保持原始格式，不进行清理
+    // Note.
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Private key must keep original formatting.
     $private_key = isset($_POST['private_key']) ? wp_unslash($_POST['private_key']) : '';
-    // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - Webhook 密钥是密钥数据，需要保持原始格式，不进行清理
+    // Note.
+    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Webhook key must keep original formatting.
     $webhook_key = isset($_POST['webhook_key']) ? wp_unslash($_POST['webhook_key']) : '';
     $environment = isset($_POST['environment']) ? sanitize_text_field(wp_unslash($_POST['environment'])) : 'yes';
 
@@ -713,11 +736,11 @@ function wonder_ajax_test_config()
 }
 
 /**
- * 测试 API 连接函数 - 使用SDK进行验证
+ * Note.
  */
 function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $environment = 'yes')
 {
-    // 检查SDK是否存在
+    // Note.
     if (!class_exists('PaymentSDK')) {
         return array(
             'success' => false,
@@ -725,7 +748,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
         );
     }
 
-    // 简单验证输入参数
+    // Note.
     $errors = array();
 
     if (empty($app_id)) {
@@ -733,7 +756,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
     }
 
     if (!empty($private_key)) {
-        // 验证私钥格式
+        // Note.
         $key = openssl_pkey_get_private($private_key);
         if (!$key) {
             $errors[] = 'Invalid private key format';
@@ -749,12 +772,12 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
         );
     }
 
-    // 根据环境选择环境字符串（关闭时使用 stg，开启时使用 prod）
+    // Note.
     $environment_value = $environment === 'yes' ? 'prod' : 'stg';
 
-    // 使用SDK进行测试
+    // Note.
     try {
-        // 检查SDK类是否存在
+        // Note.
         if (!class_exists('PaymentSDK')) {
             return array(
                 'success' => false,
@@ -762,7 +785,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
             );
         }
 
-        // 确保所有必需参数存在
+        // Note.
         $webhookPublicKeyValue = !empty($webhook_key) ? $webhook_key : '';
 
         $options = array(
@@ -779,7 +802,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
                 $logger->debug('SDK Options initialized', array( 'source' => 'wonder-payments' ));
         
         
-                // 尝试实例化SDK
+                // Note.
         $authSDK = new PaymentSDK($options);
         if (!$authSDK) {
             return array(
@@ -788,7 +811,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
             );
         }
 
-        // 检查 verifySignature 方法是否存在
+        // Note.
         if (!method_exists($authSDK, 'verifySignature')) {
             return array(
                 'success' => false,
@@ -796,11 +819,11 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
             );
         }
 
-        // 使用 SDK 的 verifySignature 方法进行测试
+        // Note.
         $result = $authSDK->verifySignature();
-        // verifySignature 返回的是数组，需要检查 success 字段
+        // Note.
         if (is_array($result) && isset($result['success']) && $result['success'] === true) {
-            // 获取business信息
+            // Note.
             $business_name = isset($result['business']['business_name']) ? $result['business']['business_name'] : 'Unknown';
             $business_id = isset($result['business']['id']) ? $result['business']['id'] : 'Unknown';
 
@@ -824,7 +847,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
 
     } catch (Exception $e) {
 
-        // 检查错误信息
+        // Note.
         $error_msg = $e->getMessage();
         if (strpos($error_msg, 'Invalid credential') !== false || strpos($error_msg, '403') !== false) {
             return array(
@@ -840,11 +863,11 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
     }
 }
 
-// 在支付设置页面底部添加自定义三点菜单
+// Note.
 add_action('admin_footer', 'wonder_payments_add_custom_ellipsis_menu');
 
 function wonder_payments_add_custom_ellipsis_menu() {
-    // 只在支付设置页面加载
+    // Note.
     $page = filter_input(INPUT_GET, 'page', FILTER_SANITIZE_SPECIAL_CHARS);
     $tab = filter_input(INPUT_GET, 'tab', FILTER_SANITIZE_SPECIAL_CHARS);
     if (!$page || $page !== 'wc-settings' || !$tab || $tab !== 'checkout') {
@@ -855,9 +878,9 @@ function wonder_payments_add_custom_ellipsis_menu() {
     jQuery(document).ready(function($) {
         console.log('=== Wonder Payments: Custom ellipsis menu script loaded ===');
         
-        // Deactivate函数
+        // Note.
         window.wonderPaymentsDeactivate = function() {
-            if (!confirm('确定要删除AppID和所有配置信息吗？此操作不可恢复。')) {
+            if (!confirm('Are you sure you want to delete the App ID and all configuration data? This cannot be undone.')) {
                 return;
             }
             
@@ -870,33 +893,33 @@ function wonder_payments_add_custom_ellipsis_menu() {
                 },
                 success: function(response) {
                     if (response.success) {
-                        // 删除成功后，清除localStorage中的登录信息
+                        // Note.
                         localStorage.removeItem('wonder_access_token');
                         localStorage.removeItem('wonder_business_id');
                         localStorage.removeItem('wonder_selected_business_id');
                         localStorage.removeItem('wonder_selected_business_name');
                         
-                        // 触发logout功能（如果存在）
+                        // Note.
                         if (typeof window.wonderPaymentsLogout === 'function') {
                             window.wonderPaymentsLogout();
                         }
                         
-                        alert('已成功删除所有配置信息。');
+                        alert('All configuration data was deleted successfully.');
                         
-                        // 关闭模态框
+                        // Note.
                         $('#wonder-modal-body').empty();
                         $('#wonder-settings-modal').fadeOut(300);
                     } else {
-                        alert('删除失败：' + response.data.message);
+                        alert('Deletion failed: ' + response.data.message);
                     }
                 },
                 error: function() {
-                    alert('删除失败，请重试。');
+                    alert('Deletion failed, please try again.');
                 }
             });
         };
         
-        // 监听WooCommerce三点菜单的点击
+        // Note.
         $(document).on('click', '.gridicons-ellipsis', function(e) {
             var $toggle = $(this);
             var $row = $toggle.closest('.woocommerce-list__item');
@@ -904,16 +927,16 @@ function wonder_payments_add_custom_ellipsis_menu() {
             
             console.log('=== Wonder Payments: Ellipsis menu clicked, row ID:', rowId, '===');
             
-            // 检查是否是Wonder Payment网关
+            // Note.
             if (rowId === 'wonder_payments') {
                 console.log('=== Wonder Payments: This is Wonder Payment gateway ===');
                 
-                // 延迟添加，等待菜单打开
+                // Note.
                 setTimeout(function() {
-                    // 添加调试信息
+                    // Note.
                     console.log('=== Wonder Payments: All dropdown menus:', $('.woocommerce-ellipsis-menu__content').length, '===');
                     
-                    // 查找菜单内容 - 使用正确的WooCommerce类名
+                    // Note.
                     var $menu = $('.woocommerce-ellipsis-menu__content').first();
                     
                     console.log('=== Wonder Payments: Menu found:', $menu.length, '===');
@@ -973,7 +996,7 @@ function wonder_payments_add_custom_ellipsis_menu() {
 function wonder_payments_admin_scripts($hook)
 {
 
-    // 只在 WooCommerce 设置页面加载
+    // Note.
 
     if ('woocommerce_page_wc-settings' !== $hook) {
 
@@ -982,7 +1005,7 @@ function wonder_payments_admin_scripts($hook)
     }
 
 
-    // 检查是否是我们的支付网关设置页面
+    // Note.
 
     $section = filter_input(INPUT_GET, 'section', FILTER_SANITIZE_SPECIAL_CHARS);
     if (!$section || $section !== 'wonder_payments') {
@@ -992,7 +1015,7 @@ function wonder_payments_admin_scripts($hook)
     }
 
 
-    // 使用修复版的 JavaScript 文件
+    // Note.
 
 
     $script_url = plugin_dir_url(__FILE__) . 'assets/js/admin-fixed.js';
@@ -1001,7 +1024,7 @@ function wonder_payments_admin_scripts($hook)
     $script_path = plugin_dir_path(__FILE__) . 'assets/js/admin-fixed.js';
 
     if (!file_exists($script_path)) {
-        // 回退到原始文件
+        // Note.
         $script_url = plugin_dir_url(__FILE__) . 'assets/js/admin.js';
 
 
@@ -1016,11 +1039,11 @@ function wonder_payments_admin_scripts($hook)
     }
 
 
-    // 获取文件修改时间作为版本号，避免缓存
+    // Note.
 
 
     $script_version = filemtime($script_path);
-    // 先注册脚本
+    // Note.
 
 
     wp_register_script(
@@ -1044,13 +1067,13 @@ function wonder_payments_admin_scripts($hook)
     );
 
 
-    // 最后排队脚本
+    // Note.
 
 
     wp_enqueue_script('wonder-payments-admin');
 
 
-    // 传递数据到 JavaScript
+    // Note.
 
 
     wp_localize_script('wonder-payments-admin', 'wonder_payments_admin', array(
@@ -1107,7 +1130,7 @@ function wonder_payments_admin_scripts($hook)
 
 
 /**
- * AJAX: 获取订单调试信息
+ * Note.
  */
 
 
@@ -1121,7 +1144,7 @@ function wonder_payments_debug_order()
     if (!current_user_can('manage_options')) {
 
 
-        wp_die('权限不足');
+        wp_die('Insufficient permissions');
 
 
     }
@@ -1136,7 +1159,7 @@ function wonder_payments_debug_order()
     if (!$order) {
 
 
-        wp_send_json_error('订单不存在');
+        wp_send_json_error('Order not found');
 
 
     }
@@ -1203,7 +1226,7 @@ add_action('wp_ajax_wonder_payments_debug_order', 'wonder_payments_debug_order')
 
 
 /**
- * AJAX: 获取调试日志
+ * Note.
  */
 
 
@@ -1217,7 +1240,7 @@ function wonder_payments_get_logs()
     if (!current_user_can('manage_options')) {
 
 
-        wp_die('权限不足');
+        wp_die('Insufficient permissions');
 
 
     }
@@ -1232,7 +1255,7 @@ function wonder_payments_get_logs()
     if (file_exists($log_file)) {
 
 
-        // 读取最后100行日志
+        // Note.
 
 
         $logs = shell_exec('tail -100 ' . escapeshellarg($log_file));
@@ -1241,7 +1264,7 @@ function wonder_payments_get_logs()
         if (!$logs) {
 
 
-            $logs = '无法读取日志文件';
+            $logs = 'Unable to read log file';
 
 
         }
@@ -1250,7 +1273,7 @@ function wonder_payments_get_logs()
     } else {
 
 
-        $logs = '日志文件不存在: ' . $log_file;
+        $logs = 'Log file does not exist: ' . $log_file;
 
 
     }
@@ -1265,7 +1288,7 @@ function wonder_payments_get_logs()
 add_action('wp_ajax_wonder_payments_get_logs', 'wonder_payments_get_logs');
 
 /**
- * AJAX: 使用 SDK 创建二维码
+ * Note.
  */
 function wonder_payments_sdk_create_qrcode() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1275,10 +1298,10 @@ function wonder_payments_sdk_create_qrcode() {
     }
 
     try {
-        // 从 WooCommerce 设置中获取 appid
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
-        // 初始化 SDK
+        // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
@@ -1287,7 +1310,7 @@ function wonder_payments_sdk_create_qrcode() {
             'jwtToken' => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I',
             'language' => 'en-US'
         ]);
-        // 调用 SDK 创建二维码
+        // Note.
         $qrCode = $sdk->createQRCode();
 
         wp_send_json_success(array(
@@ -1303,7 +1326,7 @@ function wonder_payments_sdk_create_qrcode() {
 add_action('wp_ajax_wonder_payments_sdk_create_qrcode', 'wonder_payments_sdk_create_qrcode');
 
 /**
- * AJAX: 使用 SDK 查询二维码状态
+ * Note.
  */
 function wonder_payments_sdk_qrcode_status() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1319,11 +1342,11 @@ function wonder_payments_sdk_qrcode_status() {
     }
 
     try {
-        // 从 WooCommerce 设置中获取 appid
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
 
-        // 初始化 SDK
+        // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
@@ -1333,7 +1356,7 @@ function wonder_payments_sdk_qrcode_status() {
             'language' => 'en-US'
         ]);
 
-        // 调用 SDK 查询状态
+        // Note.
         $status = $sdk->getQRCodeStatus($uuid);
 
         wp_send_json_success(array('data' => $status['data']));
@@ -1344,7 +1367,7 @@ function wonder_payments_sdk_qrcode_status() {
 add_action('wp_ajax_wonder_payments_sdk_qrcode_status', 'wonder_payments_sdk_qrcode_status');
 
 /**
- * AJAX: 获取店铺列表
+ * Note.
  */
 function wonder_payments_sdk_get_businesses() {
     $startTime = microtime(true);
@@ -1355,18 +1378,18 @@ function wonder_payments_sdk_get_businesses() {
     }
 
     try {
-        // 从 WooCommerce 设置中获取 appid
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
 
-        // 获取用户访问令牌
+        // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
 
         if (empty($userAccessToken)) {
             wp_send_json_error(array('message' => 'User Access Token not found. Please scan QR code to login first.'));
         }
 
-        // 初始化 SDK
+        // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
@@ -1377,14 +1400,14 @@ function wonder_payments_sdk_get_businesses() {
             'language' => 'en-US'
         ]);
 
-        // 调用 SDK 获取店铺列表
+        // Note.
         $sdkStartTime = microtime(true);
         $businesses = $sdk->getBusinesses();
 
-        // 检查响应结构,可能需要访问 data.data
+        // Note.
         $businessData = isset($businesses['data']) ? $businesses['data'] : array();
 
-        // 如果 data 中还有 data 字段,则访问内层的 data
+        // Note.
         if (isset($businessData['data']) && is_array($businessData['data'])) {
             $businessData = $businessData['data'];
         }
@@ -1402,7 +1425,7 @@ function wonder_payments_sdk_get_businesses() {
 add_action('wp_ajax_wonder_payments_sdk_get_businesses', 'wonder_payments_sdk_get_businesses');
 
 /**
- * AJAX: 保存用户访问令牌
+ * Note.
  */
 function wonder_payments_sdk_save_access_token() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1418,7 +1441,7 @@ function wonder_payments_sdk_save_access_token() {
         wp_send_json_error(array('message' => 'Access Token is required'));
     }
 
-    // 保存到 WordPress 选项
+    // Note.
     update_option('wonder_payments_user_access_token', $accessToken);
     update_option('wonder_payments_business_id', $businessId);
     wp_send_json_success(array('message' => 'Access Token saved successfully'));
@@ -1426,7 +1449,7 @@ function wonder_payments_sdk_save_access_token() {
 add_action('wp_ajax_wonder_payments_sdk_save_access_token', 'wonder_payments_sdk_save_access_token');
 
 /**
- * AJAX: 生成密钥对并获取 App ID
+ * Note.
  */
 function wonder_payments_sdk_generate_app_id() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1436,18 +1459,18 @@ function wonder_payments_sdk_generate_app_id() {
     }
 
     try {
-        // 从 WooCommerce 设置中获取 appid
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
 
-        // 获取用户访问令牌
+        // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
 
         if (empty($userAccessToken)) {
             wp_send_json_error(array('message' => 'User Access Token not found. Please scan QR code to login first.'));
         }
 
-        // 获取业务 ID
+        // Note.
         $businessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
 
         if (empty($businessId)) {
@@ -1464,13 +1487,13 @@ function wonder_payments_sdk_generate_app_id() {
             $privateKey = $keyPair['private_key'];
             $publicKey = $keyPair['public_key'];
 
-            // 保存私钥到 WordPress 选项
+            // Note.
             update_option('wonder_payments_private_key', $privateKey);
         } catch (Exception $e) {
             wp_send_json_error(array('message' => 'Failed to generate key pair: ' . $e->getMessage()));
         }
 
-        // 初始化 SDK
+        // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
@@ -1481,7 +1504,7 @@ function wonder_payments_sdk_generate_app_id() {
             'language' => 'en-US'
         ]);
         
-        // 返回成功，提示用户手动创建AppID
+        // Note.
         wp_send_json_success(array(
             'message' => 'Key pair generated successfully. Please create App ID manually in Wonder Portal and enter it in the settings.',
             'public_key' => $publicKey,
@@ -1498,7 +1521,7 @@ function wonder_payments_sdk_generate_app_id() {
 add_action('wp_ajax_wonder_payments_sdk_generate_app_id', 'wonder_payments_sdk_generate_app_id');
 
 /**
- * AJAX: 检查是否已连接店铺
+ * Note.
  */
 function wonder_payments_check_connection() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1508,7 +1531,7 @@ function wonder_payments_check_connection() {
     }
 
     try {
-        // 从 WooCommerce 设置中获取 app_id
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
 
@@ -1525,7 +1548,7 @@ function wonder_payments_check_connection() {
             $connectionInfo['connected'] = true;
             $connectionInfo['app_id'] = $appId;
 
-            // 尝试从 localStorage 选项中获取业务信息
+            // Note.
             $businessId = get_option('wonder_payments_business_id', '');
             $businessName = get_option('wonder_payments_business_name', '');
 
@@ -1541,7 +1564,7 @@ function wonder_payments_check_connection() {
 add_action('wp_ajax_wonder_payments_check_connection', 'wonder_payments_check_connection');
 
 /**
- * AJAX: 加载模态窗口内容
+ * Note.
  */
 function wonder_payments_load_modal_content() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1551,7 +1574,7 @@ function wonder_payments_load_modal_content() {
     }
 
     ob_start();
-    // 调用 Wonder_Payments_Admin 类的渲染方法
+    // Note.
     $admin = new Wonder_Payments_Admin();
     $admin->render_setup_page();
     $content = ob_get_clean();
@@ -1561,7 +1584,7 @@ function wonder_payments_load_modal_content() {
 add_action('wp_ajax_wonder_payments_load_modal_content', 'wonder_payments_load_modal_content');
 
 /**
- * AJAX: 获取网关配置
+ * Note.
  */
 function wonder_payments_get_config() {
     check_ajax_referer('wonder_payments_config_nonce', 'security');
@@ -1581,7 +1604,7 @@ function wonder_payments_get_config() {
 add_action('wp_ajax_wonder_payments_get_config', 'wonder_payments_get_config');
 
 /**
- * AJAX: 保存选择的店铺ID
+ * Note.
  */
 function wonder_payments_save_selected_business() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1598,11 +1621,11 @@ function wonder_payments_save_selected_business() {
             wp_send_json_error(array('message' => 'Business ID is required'));
         }
 
-        // 保存到 WordPress 选项
+        // Note.
         update_option('wonder_payments_business_id', $businessId);
         update_option('wonder_payments_business_name', $businessName);
 
-        // 清空之前的app_id(因为换了店铺)
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $settings['app_id'] = '';
         update_option('woocommerce_wonder_payments_settings', $settings);
@@ -1615,7 +1638,7 @@ function wonder_payments_save_selected_business() {
 add_action('wp_ajax_wonder_payments_save_selected_business', 'wonder_payments_save_selected_business');
 
 /**
- * AJAX: 只生成密钥对
+ * Note.
  */
 function wonder_payments_generate_key_pair_only() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1626,15 +1649,15 @@ function wonder_payments_generate_key_pair_only() {
 
     try {
 
-        // 获取当前选择的business_id
+        // Note.
         $currentBusinessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
 
-        // 获取已保存的app_id和business_id
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $savedAppId = isset($settings['app_id']) ? $settings['app_id'] : '';
         $savedBusinessId = get_option('wonder_payments_business_id', '');
 
-        // 如果已有AppID且business_id一致，直接返回已保存的密钥，避免重置私钥导致签名失效
+        // Note.
         if ($savedAppId && $savedBusinessId === $currentBusinessId) {
             $storedPrivateKey = isset($settings['private_key']) ? $settings['private_key'] : get_option('wonder_payments_private_key', '');
             $storedPublicKey = isset($settings['generated_public_key']) ? $settings['generated_public_key'] : get_option('wonder_payments_public_key', '');
@@ -1650,7 +1673,30 @@ function wonder_payments_generate_key_pair_only() {
             ));
         }
 
-        // 生成 2048 位 RSA 密钥对
+        // Note.
+        if (empty($savedAppId)) {
+            update_option('wonder_payments_webhook_key', '');
+        }
+
+        // Note.
+        $pendingBusinessId = get_option('wonder_payments_pending_business_id', '');
+        $pendingPrivateKey = get_option('wonder_payments_pending_private_key', '');
+        $pendingPublicKey = get_option('wonder_payments_pending_public_key', '');
+        $pendingWebhookKey = get_option('wonder_payments_pending_webhook_key', '');
+        $pendingAppId = get_option('wonder_payments_pending_app_id', '');
+
+        if ($pendingBusinessId === $currentBusinessId && $pendingPrivateKey && $pendingPublicKey) {
+            wp_send_json_success(array(
+                'data' => array(
+                    'public_key' => $pendingPublicKey,
+                    'private_key' => $pendingPrivateKey,
+                    'webhook_key' => $pendingWebhookKey,
+                    'app_id' => $pendingAppId
+                )
+            ));
+        }
+
+        // Note.
         $keyPair = PaymentSDK::generateKeyPair(2048);
 
         if (!isset($keyPair['private_key']) || !isset($keyPair['public_key'])) {
@@ -1660,17 +1706,11 @@ function wonder_payments_generate_key_pair_only() {
         $privateKey = $keyPair['private_key'];
         $publicKey = $keyPair['public_key'];
 
-        // 生成 Webhook Key
-        $webhookKey = bin2hex(random_bytes(32));
-        // 保存密钥对到 WordPress 选项
-        update_option('wonder_payments_private_key', $privateKey);
-        update_option('wonder_payments_public_key', $publicKey);
-        update_option('wonder_payments_webhook_key', $webhookKey);
-
-        // 同时也保存私钥到 WooCommerce 设置中
-        $settings['private_key'] = $privateKey;
-        $settings['generated_public_key'] = $publicKey;
-        update_option('woocommerce_wonder_payments_settings', $settings);
+        // Note.
+        update_option('wonder_payments_pending_private_key', $privateKey);
+        update_option('wonder_payments_pending_public_key', $publicKey);
+        update_option('wonder_payments_pending_webhook_key', '');
+        update_option('wonder_payments_pending_business_id', $currentBusinessId);
 
         $appIdToReturn = '';
 
@@ -1678,7 +1718,7 @@ function wonder_payments_generate_key_pair_only() {
             'data' => array(
                 'public_key' => $publicKey,
                 'private_key' => $privateKey,
-                'webhook_key' => $webhookKey,
+                'webhook_key' => '',
                 'app_id' => $appIdToReturn
             )
         ));
@@ -1689,7 +1729,7 @@ function wonder_payments_generate_key_pair_only() {
 add_action('wp_ajax_wonder_payments_generate_key_pair_only', 'wonder_payments_generate_key_pair_only');
 
 /**
- * AJAX: 只生成app_id(使用已保存的公钥)
+ * Note.
  */
 function wonder_payments_sdk_create_app_id() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1706,21 +1746,24 @@ function wonder_payments_sdk_create_app_id() {
             wp_send_json_error(array('message' => 'Business ID is required'));
         }
 
-        // 获取已保存的公钥
-        $publicKey = get_option('wonder_payments_public_key', '');
+        // Note.
+        $publicKey = get_option('wonder_payments_pending_public_key', '');
+        if (empty($publicKey)) {
+            $publicKey = get_option('wonder_payments_public_key', '');
+        }
 
         if (empty($publicKey)) {
             wp_send_json_error(array('message' => 'Public key not found. Please generate key pair first.'));
         }
 
-        // 获取用户访问令牌
+        // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
 
         if (empty($userAccessToken)) {
             wp_send_json_error(array('message' => 'User Access Token not found. Please scan QR code to login first.'));
         }
 
-        // 初始化 SDK
+        // Note.
         $sdk = new PaymentSDK([
             'appid' => '',
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
@@ -1731,33 +1774,44 @@ function wonder_payments_sdk_create_app_id() {
             'language' => 'en-US'
         ]);
 
-        // 调用 SDK 生成 app_id
+        // Note.
         $result = $sdk->generateAppId($businessId, $publicKey);
 
-        // 从响应中提取 app_id
+        // Note.
         $newAppId = '';
         if (isset($result['data']['app_id'])) {
             $newAppId = $result['data']['app_id'];
+        } elseif (isset($result['data']['data']['app_id'])) {
+            $newAppId = $result['data']['data']['app_id'];
         } elseif (isset($result['app_id'])) {
             $newAppId = $result['app_id'];
         }
 
-        // 从响应中提取 webhook_private_key
+        // Note.
         $webhookPrivateKey = '';
         if (isset($result['data']['webhook_private_key'])) {
             $webhookPrivateKey = $result['data']['webhook_private_key'];
+        } elseif (isset($result['data']['data']['webhook_private_key'])) {
+            $webhookPrivateKey = $result['data']['data']['webhook_private_key'];
+        } elseif (isset($result['data']['webhook_public_key'])) {
+            $webhookPrivateKey = $result['data']['webhook_public_key'];
+        } elseif (isset($result['data']['data']['webhook_public_key'])) {
+            $webhookPrivateKey = $result['data']['data']['webhook_public_key'];
         } elseif (isset($result['webhook_private_key'])) {
             $webhookPrivateKey = $result['webhook_private_key'];
+        } elseif (isset($result['webhook_public_key'])) {
+            $webhookPrivateKey = $result['webhook_public_key'];
         }
 
-        // 保存 app_id 到 WooCommerce 设置
+        // Note.
         if (!empty($newAppId)) {
-            $settings = get_option('woocommerce_wonder_payments_settings', array());
-            $settings['app_id'] = $newAppId;
-            update_option('woocommerce_wonder_payments_settings', $settings);
+            update_option('wonder_payments_pending_app_id', $newAppId);
+            if (!empty($webhookPrivateKey)) {
+                update_option('wonder_payments_pending_webhook_key', $webhookPrivateKey);
+            }
         }
 
-        // 返回 app_id 和 webhook_private_key
+        // Note.
         wp_send_json_success(array(
             'app_id' => $newAppId,
             'webhook_private_key' => $webhookPrivateKey
@@ -1769,7 +1823,7 @@ function wonder_payments_sdk_create_app_id() {
 add_action('wp_ajax_wonder_payments_sdk_create_app_id', 'wonder_payments_sdk_create_app_id');
 
 /**
- * AJAX: 清除所有数据
+ * Note.
  */
 function wonder_payments_clear_all() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1780,16 +1834,21 @@ function wonder_payments_clear_all() {
 
     try {
 
-        // 清除所有WordPress选项
+        // Note.
         delete_option('wonder_payments_app_id');
         delete_option('wonder_payments_business_id');
         delete_option('wonder_payments_business_name');
         delete_option('wonder_payments_public_key');
         delete_option('wonder_payments_private_key');
         delete_option('wonder_payments_user_access_token');
-        delete_option('wonder_payments_connected'); // 清除连接状态
+        delete_option('wonder_payments_connected'); // Note.
+        delete_option('wonder_payments_pending_private_key');
+        delete_option('wonder_payments_pending_public_key');
+        delete_option('wonder_payments_pending_webhook_key');
+        delete_option('wonder_payments_pending_app_id');
+        delete_option('wonder_payments_pending_business_id');
 
-        // 清除WooCommerce设置
+        // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $settings['app_id'] = '';
         $settings['private_key'] = '';
@@ -1805,7 +1864,7 @@ function wonder_payments_clear_all() {
 add_action('wp_ajax_wonder_payments_clear_all', 'wonder_payments_clear_all');
 
 /**
- * AJAX: 加载Settings
+ * Note.
  */
 function wonder_payments_load_settings() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1815,9 +1874,9 @@ function wonder_payments_load_settings() {
     }
 
     try {
-        // 优先从 WooCommerce 配置加载
+        // Note.
         $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
-        // 如果 WooCommerce 配置为空,尝试从 wonder_payments_settings 加载
+        // Note.
         if (empty($wcSettings)) {
             $wcSettings = get_option('wonder_payments_settings', array());
         }
@@ -1830,7 +1889,7 @@ function wonder_payments_load_settings() {
 add_action('wp_ajax_wonder_payments_load_settings', 'wonder_payments_load_settings');
 
 /**
- * AJAX: 保存Settings
+ * Note.
  */
 function wonder_payments_save_settings() {
     check_ajax_referer('wonder_payments_modal_nonce', 'security');
@@ -1840,42 +1899,84 @@ function wonder_payments_save_settings() {
     }
 
     try {
-        // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - settings 数组将在下面逐个字段进行清理
+        // Note.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Settings array sanitized per-field below.
         $settings = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : array();
 
-        // 验证和清理数据
-        $title = isset($settings['title']) ? sanitize_text_field($settings['title']) : '';
-        $description = isset($settings['description']) ? sanitize_textarea_field($settings['description']) : '';
-        $sandboxMode = isset($settings['sandbox_mode']) ? ($settings['sandbox_mode'] === '1' ? '1' : '0') : '0';
-        $dueDate = isset($settings['due_date']) ? intval($settings['due_date']) : 30;
+    // Note.
+    $title = isset($settings['title']) ? sanitize_text_field($settings['title']) : '';
+    $description = isset($settings['description']) ? sanitize_textarea_field($settings['description']) : '';
+    $sandboxMode = isset($settings['sandbox_mode']) ? ($settings['sandbox_mode'] === '1' ? '1' : '0') : '0';
+    $dueDate = isset($settings['due_date']) ? intval($settings['due_date']) : 30;
+    $appId = isset($settings['app_id']) ? sanitize_text_field($settings['app_id']) : '';
+    $privateKey = isset($settings['private_key']) ? sanitize_textarea_field($settings['private_key']) : '';
+    $publicKey = isset($settings['generated_public_key']) ? sanitize_textarea_field($settings['generated_public_key']) : '';
+    $webhookPublicKey = isset($settings['webhook_public_key']) ? sanitize_textarea_field($settings['webhook_public_key']) : '';
 
-        // 验证due_date范围
+        // Note.
         if ($dueDate < 1) {
             $dueDate = 1;
         } elseif ($dueDate > 365) {
             $dueDate = 365;
         }
 
-        // 将sandbox_mode映射为环境: stg(启用) 或 prod(关闭)
+        // Note.
         $environment = ($sandboxMode === '1') ? 'stg' : 'prod';
 
-        // 保存到 WooCommerce 配置
-        $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
+    // Note.
+    $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
 
-        // 更新配置
+    // Note.
+    $existingAppId = isset($wcSettings['app_id']) ? $wcSettings['app_id'] : '';
+    $existingPrivateKey = isset($wcSettings['private_key']) ? $wcSettings['private_key'] : '';
+
+    if ($appId !== '' && $privateKey === '' && $existingPrivateKey === '') {
+        wp_send_json_error(array('message' => 'Private Key is required when saving App ID.'));
+    }
+
+    if ($privateKey !== '' && $appId === '' && $existingAppId === '') {
+        wp_send_json_error(array('message' => 'App ID is required when saving Private Key.'));
+    }
+
+    if ($appId !== '' && $existingAppId !== '' && $appId !== $existingAppId && $privateKey === '' && $existingPrivateKey !== '') {
+        wp_send_json_error(array('message' => 'App ID changed. Please save a matching Private Key.'));
+    }
+
+        // Note.
         $wcSettings['title'] = $title;
         $wcSettings['description'] = $description;
         $wcSettings['sandbox_mode'] = $sandboxMode;
         $wcSettings['environment'] = $environment;
         $wcSettings['due_date'] = $dueDate;
+        if ($appId !== '') {
+            $wcSettings['app_id'] = $appId;
+        }
+        if ($privateKey !== '') {
+            $wcSettings['private_key'] = $privateKey;
+        }
+        if ($publicKey !== '') {
+            $wcSettings['generated_public_key'] = $publicKey;
+        }
+        if ($webhookPublicKey !== '') {
+            $wcSettings['webhook_public_key'] = $webhookPublicKey;
+        } elseif ($appId === '') {
+            $wcSettings['webhook_public_key'] = '';
+        }
 
-        // 同时也保存到 wonder_payments_settings (用于Settings页面加载)
+        // Note.
         update_option('wonder_payments_settings', $wcSettings);
 
-        // 保存到 WooCommerce 设置
+        // Note.
         update_option('woocommerce_wonder_payments_settings', $wcSettings);
 
-        // 验证数据是否真的保存到数据库
+        // Note.
+        delete_option('wonder_payments_pending_private_key');
+        delete_option('wonder_payments_pending_public_key');
+        delete_option('wonder_payments_pending_webhook_key');
+        delete_option('wonder_payments_pending_app_id');
+        delete_option('wonder_payments_pending_business_id');
+
+        // Note.
         $savedSettings = get_option('woocommerce_wonder_payments_settings', array());
         $verificationPassed = true;
 
@@ -1892,13 +1993,13 @@ function wonder_payments_save_settings() {
         }
 
         if ($verificationPassed) {
-            // 数据库级别验证 - 使用 get_option() 查询
+            // Note.
             $optionName = 'woocommerce_wonder_payments_settings';
             $dbResult = get_option($optionName);
 
             if ($dbResult) {
 
-                // 反序列化验证
+                // Note.
                 $unserialized = maybe_unserialize($dbResult);
                 $logger = wonder_payments_get_logger();
                 if (is_array($unserialized)) {
@@ -1922,7 +2023,7 @@ function wonder_payments_save_settings() {
 add_action('wp_ajax_wonder_payments_save_settings', 'wonder_payments_save_settings');
 
 /**
- * 在 WooCommerce 设置页面添加模态窗口和 JavaScript
+ * Note.
  */
 function wonder_payments_add_modal_to_settings_page() {
     $page = filter_input(INPUT_GET, 'page', FILTER_SANITIZE_SPECIAL_CHARS);
@@ -1943,11 +2044,11 @@ function wonder_payments_add_modal_to_settings_page() {
     $logger->debug('Loading modal on payment gateways list page', array( 'source' => 'wonder-payments' ));
 
     ?>
-    <!-- Wonder Payment 设置模态窗口 -->
+    <!-- Note. -->
     <div id="wonder-settings-modal" class="wonder-modal" style="display: none;">
         <div class="wonder-modal-content">
             <div class="wonder-modal-body" id="wonder-modal-body">
-                <!-- 内容将通过 AJAX 加载 -->
+                <!-- Note. -->
                 <div class="wonder-loading">
                     <span class="spinner is-active"></span>
                     <?php esc_html_e('Loading...', 'wonder-payments'); ?>
@@ -2035,7 +2136,7 @@ function wonder_payments_add_modal_to_settings_page() {
             margin: 0 10px 0 0;
         }
 
-        /* Wonder Payments 支付设置页面三点菜单样式 */
+        /* Note. */
         .wonder-payments-admin-header {
             display: flex;
             justify-content: space-between;
@@ -2133,7 +2234,7 @@ function wonder_payments_add_modal_to_settings_page() {
         jQuery(document).ready(function ($) {
             console.log('=== Wonder Payments: jQuery document ready ===');
             
-            // 等待按钮加载完成后，替换第一个管理按钮
+            // Note.
             var checkInterval = setInterval(function() {
                 var $manageBtns = $('.components-button.is-secondary');
                 if ($manageBtns.length > 0) {
@@ -2141,23 +2242,23 @@ function wonder_payments_add_modal_to_settings_page() {
                     var $wonderBtn = $manageBtns.eq(0);
                     console.log('=== Wonder Payments: Found Wonder Payment button ===');
                     
-                    // 创建一个新按钮来替换它
+                    // Note.
                     var $newBtn = $wonderBtn.clone();
                     $newBtn.attr('href', 'javascript:void(0)');
                     $newBtn.removeAttr('onclick');
                     $newBtn.off();
                     
-                    // 绑定点击事件
+                    // Note.
                     $newBtn.on('click', function(e) {
                         console.log('=== Wonder Payment button clicked ===');
                         e.preventDefault();
                         e.stopPropagation();
                         e.stopImmediatePropagation();
                         
-                        // 打开模态窗口
+                        // Note.
                         $('#wonder-settings-modal').fadeIn(300);
 
-                        // 加载设置页面内容
+                        // Note.
                         $.ajax({
                             url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                             type: 'POST',
@@ -2181,61 +2282,61 @@ function wonder_payments_add_modal_to_settings_page() {
                         return false;
                     });
                     
-                    // 替换旧按钮
+                    // Note.
                     $wonderBtn.replaceWith($newBtn);
                     console.log('=== Wonder Payments: Button replaced ===');
                 }
             }, 100);
             
-            // 最大等待5秒
+            // Note.
             setTimeout(function() {
                 clearInterval(checkInterval);
             }, 5000);
 
-            // 关闭模态窗口 - 使用事件委托
+            // Note.
             $(document).on('click', '#close-wonder-modal', function () {
-                // 清除全局轮询变量
+                // Note.
                 if (window.wonderPaymentsPollInterval) {
                     clearInterval(window.wonderPaymentsPollInterval);
                     window.wonderPaymentsPollInterval = null;
                     console.log('Cleared poll interval on modal close');
                 }
-                // 清空模态框内容，停止所有JavaScript执行
+                // Note.
                 $('#wonder-modal-body').empty();
                 $('#wonder-settings-modal').fadeOut(300);
             });
 
-            // 点击背景关闭
+            // Note.
             $('#wonder-settings-modal').on('click', function (e) {
                 if (e.target === this) {
-                    // 清除全局轮询变量
+                    // Note.
                     if (window.wonderPaymentsPollInterval) {
                         clearInterval(window.wonderPaymentsPollInterval);
                         window.wonderPaymentsPollInterval = null;
                         console.log('Cleared poll interval on modal close');
                     }
-                    // 清空模态框内容，停止所有JavaScript执行
+                    // Note.
                     $('#wonder-modal-body').empty();
                     $(this).fadeOut(300);
                 }
             });
 
-            // ESC 键关闭
+            // Note.
             $(document).on('keydown', function (e) {
                 if (e.key === 'Escape' && $('#wonder-settings-modal').is(':visible')) {
-                    // 清除全局轮询变量
+                    // Note.
                     if (window.wonderPaymentsPollInterval) {
                         clearInterval(window.wonderPaymentsPollInterval);
                         window.wonderPaymentsPollInterval = null;
                         console.log('Cleared poll interval on modal close');
                     }
-                    // 清空模态框内容，停止所有JavaScript执行
+                    // Note.
                     $('#wonder-modal-body').empty();
                     $('#wonder-settings-modal').fadeOut(300);
                 }
             });
 
-            // Wonder Payments 支付设置页面三点菜单
+            // Note.
             $(document).on('click', '.wonder-payments-menu-button', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -2244,45 +2345,45 @@ function wonder_payments_add_modal_to_settings_page() {
                 $menu.toggle();
             });
 
-            // 点击其他地方关闭菜单
+            // Note.
             $(document).on('click', function(e) {
                 if (!$(e.target).closest('.wonder-payments-menu-container').length) {
                     $('.wonder-payments-dropdown-menu').hide();
                 }
             });
 
-            // 隐藏建议功能
+            // Note.
             $(document).on('click', '.hide-suggestions', function(e) {
                 e.preventDefault();
                 $('.wonder-payments-dropdown-menu').hide();
 
-                // 隐藏建议区域
+                // Note.
                 $('.woocommerce-Message.woocommerce-Message--info.woocommerce-message').hide();
 
-                // 保存状态到localStorage
+                // Note.
                 localStorage.setItem('wonder_payments_suggestions_hidden', 'true');
 
-                // 显示成功提示
-                alert('<?php echo esc_js(__('建议已隐藏', 'wonder-payments')); ?>');
+                // Note.
+                alert('<?php echo esc_js(__('Suggestions hidden', 'wonder-payments')); ?>');
             });
 
-            // 检查是否需要隐藏建议
+            // Note.
             if (localStorage.getItem('wonder_payments_suggestions_hidden') === 'true') {
                 $('.woocommerce-Message.woocommerce-Message--info.woocommerce-message').hide();
             }
 
-            // 隐藏建议功能
+            // Note.
             $(document).on('click', '.wonder-payments-hide-suggestions', function(e) {
                 e.preventDefault();
 
-                // 隐藏建议区域
+                // Note.
                 $('.woocommerce-Message.woocommerce-Message--info.woocommerce-message').hide();
 
-                // 保存状态到localStorage
+                // Note.
                 localStorage.setItem('wonder_payments_suggestions_hidden', 'true');
 
-                // 显示成功提示
-                alert('<?php echo esc_js(__('建议已隐藏', 'wonder-payments')); ?>');
+                // Note.
+                alert('<?php echo esc_js(__('Suggestions hidden', 'wonder-payments')); ?>');
             });
 
             
