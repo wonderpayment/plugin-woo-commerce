@@ -837,6 +837,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             if (isset($query_response['data']['order']['transactions'][0]['refunded_amount'])) {
                 $refunded_amount = floatval($query_response['data']['order']['transactions'][0]['refunded_amount']);
             }
+            $refunded_amount = $this->normalize_refunded_amount($refunded_amount, $order_total, $order, 'refund_query');
             $order_total = floatval($query_response['data']['order']['initial_total']);
             $available_refund = $order_total - $refunded_amount;
 
@@ -1192,6 +1193,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
             }
         }
 
+        $refunded_amount = $this->normalize_refunded_amount($refunded_amount, $order_total, $order, 'webhook');
         $logger->debug('Webhook refund amount summary', array(
             'source' => 'wonder-payments',
             'order_id' => $order_id,
@@ -1224,21 +1226,11 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 ));
             }
         } elseif ($action === 'order.refunded') {
-            if ($state === 'refunded') {
+            $epsilon = 0.01;
+            $is_full_refund = ($state === 'refunded') || ($order_total > 0 && ($refunded_amount + $epsilon) >= $order_total);
+            if ($is_full_refund) {
                 $order->update_status('refunded', __('Wonder Payments order refunded.', 'wonder-payments'));
                 $logger->debug('Webhook update order to refunded', array(
-                    'source' => 'wonder-payments',
-                    'order_id' => $order_id
-                ));
-            } elseif ($correspondence_state === 'partial_paid') {
-                $order->update_status('completed', __('Wonder Payments order partially refunded.', 'wonder-payments'));
-                $logger->debug('Webhook update order to partial refund', array(
-                    'source' => 'wonder-payments',
-                    'order_id' => $order_id
-                ));
-            } elseif ($order_total > 0 && $refunded_amount >= $order_total) {
-                $order->update_status('refunded', __('Wonder Payments order refunded.', 'wonder-payments'));
-                $logger->debug('Webhook update order to refunded (amount fallback)', array(
                     'source' => 'wonder-payments',
                     'order_id' => $order_id
                 ));
@@ -1255,12 +1247,26 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
                 'source' => 'wonder-payments',
                 'order_id' => $order_id
             ));
-        } elseif ($action === 'order.voided' || $action === 'transaction.voided') {
+        } elseif ($action === 'order.voided') {
             $order->update_status('cancelled', __('Wonder Payments order voided.', 'wonder-payments'));
             $logger->debug('Webhook update order to cancelled', array(
                 'source' => 'wonder-payments',
                 'order_id' => $order_id
             ));
+        } elseif ($action === 'transaction.voided') {
+            if ($correspondence_state === 'partial_paid' || $state === 'in_completed') {
+                $order->update_status('completed', __('Wonder Payments order partially paid (transaction voided).', 'wonder-payments'));
+                $logger->debug('Webhook update order to completed (transaction voided)', array(
+                    'source' => 'wonder-payments',
+                    'order_id' => $order_id
+                ));
+            } else {
+                $order->update_status('cancelled', __('Wonder Payments order voided.', 'wonder-payments'));
+                $logger->debug('Webhook update order to cancelled', array(
+                    'source' => 'wonder-payments',
+                    'order_id' => $order_id
+                ));
+            }
         } elseif ($action === 'order.created') {
             // Note.
             $logger->debug('Webhook order created event', array(
@@ -1309,6 +1315,51 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
         $wrapped = trim(chunk_split($key, 64, "\n"));
         return "-----BEGIN PUBLIC KEY-----\n" . $wrapped . "\n-----END PUBLIC KEY-----\n";
+    }
+
+    private function normalize_refunded_amount($refunded_amount, $order_total, $order = null, $context = '')
+    {
+        $refunded_amount = (float) $refunded_amount;
+        $order_total = (float) $order_total;
+
+        if ($order_total <= 0) {
+            return $refunded_amount;
+        }
+
+        $normalized = $refunded_amount;
+        if ($refunded_amount > ($order_total * 10)) {
+            $decimals = wc_get_price_decimals();
+            $scaled = $refunded_amount / pow(10, $decimals);
+            if ($scaled > 0 && $scaled <= $order_total) {
+                $normalized = $scaled;
+            }
+        }
+
+        if ($normalized > $order_total) {
+            if ($order instanceof WC_Order) {
+                $wc_refunded = (float) $order->get_total_refunded();
+                if ($wc_refunded > 0 && $wc_refunded <= $order_total) {
+                    $normalized = $wc_refunded;
+                } else {
+                    $normalized = $order_total;
+                }
+            } else {
+                $normalized = $order_total;
+            }
+        }
+
+        if ($normalized !== $refunded_amount) {
+            $logger = $this->get_logger();
+            $logger->debug('Refunded amount normalized', array(
+                'source' => 'wonder-payments',
+                'context' => $context,
+                'original' => $refunded_amount,
+                'normalized' => $normalized,
+                'order_total' => $order_total
+            ));
+        }
+
+        return $normalized;
     }
 
     private function mask_credential($value)
