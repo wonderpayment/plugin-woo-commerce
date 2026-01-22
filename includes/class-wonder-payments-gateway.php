@@ -52,11 +52,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         $this->private_key = $this->get_option('private_key');
         $this->generated_public_key = $this->get_option('generated_public_key'); // New
         $this->webhook_public_key = $this->get_option('webhook_public_key');
-        $this->environment = $this->get_option('environment'); // New environment setting
         $this->due_date = $this->get_option('due_date'); // New payment due days
-
-        // Set testmode: sandbox off shows test mode, sandbox on shows active
-        $this->testmode = ($this->environment === 'no');
 
         // Save settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
@@ -77,26 +73,12 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
     public function init_form_fields()
     {
-        // Get current environment config and log
-        $settings = get_option('woocommerce_wonder_payments_settings', array());
-        $sandbox_enabled = isset($settings['environment']) ? $settings['environment'] : 'no';
-        $environment = ($sandbox_enabled === 'yes') ? 'prod' : 'stg';
-        $api_endpoint = ($environment === 'prod') ? 'https://gateway.wonder.today' : 'https://gateway-stg.wonder.today';
-
         $this->form_fields = array(
                 'enabled' => array(
                         'title' => __('Enable/Disable', 'wonder-payments'),
                         'label' => __('Enable Wonder Payments', 'wonder-payments'),
                         'type' => 'checkbox',
                         'default' => 'no'
-                ),
-                'environment' => array(
-                        'title' => __('Sandbox Mode', 'wonder-payments'),
-                        'label' => __('Enable Sandbox Mode', 'wonder-payments'),
-                        'type' => 'checkbox',
-                        'description' => __('When enabled, uses the staging environment. When disabled, uses the production environment.', 'wonder-payments'),
-                        'default' => 'yes',
-                        'desc_tip' => true
                 ),
                 'due_date' => array(
                         'title' => __('Payment Due Days', 'wonder-payments'),
@@ -165,7 +147,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         <table class="form-table">
             <?php
             // Only output basic fields (before App ID)
-            $basic_fields = array('enabled', 'environment', 'title', 'description', 'app_id', 'due_date');
+            $basic_fields = array('enabled', 'title', 'description', 'app_id', 'due_date');
             foreach ($basic_fields as $field) {
                 if (isset($this->form_fields[$field])) {
                     $this->generate_settings_html(array($field => $this->form_fields[$field]));
@@ -353,10 +335,10 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
         // Get current environment config
         $settings = get_option('woocommerce_wonder_payments_settings', array());
-        $sandbox_enabled = isset($settings['environment']) ? $settings['environment'] : 'no';
-
-        // Determine environment by sandbox mode
-        $environment = ($sandbox_enabled === 'yes') ? 'prod' : 'stg';
+        $environment = isset($settings['environment']) ? $settings['environment'] : 'prod';
+        if ($environment !== 'prod' && $environment !== 'stg') {
+            $environment = 'prod';
+        }
         $api_endpoint = ($environment === 'prod') ? 'https://gateway.wonder.today' : 'https://gateway-stg.wonder.today';
 
         try {
@@ -412,14 +394,19 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
      * @return bool
      */
     /**
-         * Get environment config
-         *
-         * @return string 'stg' or 'prod'
-         */
-        public function get_environment() {
-            // Sandbox Use stg when sandbox is off, prod when sandbox is on
-            return $this->environment === 'yes' ? 'prod' : 'stg';
-        }        public function is_available() {
+     * Get environment config
+     *
+     * @return string 'stg' or 'prod'
+     */
+    public function get_environment() {
+        $settings = get_option('woocommerce_wonder_payments_settings', array());
+        $environment = isset($settings['environment']) ? $settings['environment'] : 'prod';
+        if ($environment !== 'prod' && $environment !== 'stg') {
+            $environment = 'prod';
+        }
+        return $environment;
+    }
+    public function is_available() {
         $logger = $this->get_logger();
         $logger->debug('is_available() - enabled: ' . ($this->enabled ? 'yes' : 'no'), array( 'source' => 'wonder-payments' ));
 
@@ -509,7 +496,6 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
         // Log current environment config
         $environment = $this->get_environment();
-        $sandbox_enabled = $this->get_option('environment');
         $api_endpoint = ($environment === 'prod') ? 'https://gateway.wonder.today' : 'https://gateway-stg.wonder.today';
 
         $logger = $this->get_logger();
