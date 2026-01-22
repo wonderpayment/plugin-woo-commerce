@@ -1,0 +1,29 @@
+{
+    "name": "wonderpayment/sdk",
+    "description": "Core wonder payment SDK",
+    "type": "library",
+    "require": {
+        "php": "^5.6 || ^7.4 || ^8.0",
+      "ext-openssl": "*",
+      "ext-curl": "*",
+      "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "WonderPayment\\": "src/"
+        },
+        "files": [
+            "src/PaymentSDK.php"
+        ],
+        "classmap": [
+            "src/"
+        ]
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Support",
+            "email": "support@wonder.app"
+        }
+    ]
+}
