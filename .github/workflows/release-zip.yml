@@ -34,6 +34,7 @@ jobs:
           mkdir -p dist/wonder-payments
           rsync -a \
             --exclude=".git*" \
+            --exclude=".github" \
             --exclude="node_modules" \
             --exclude="vendor/bin" \
             "$plugin_src"/ dist/wonder-payments/
