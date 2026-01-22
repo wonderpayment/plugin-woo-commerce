@@ -18,7 +18,10 @@ jobs:
       - name: Build wonder-payments.zip
         run: |
           set -euo pipefail
-          plugin_src="$(ls -d wp-content/plugins/plugin-woo-commerce-* 2>/dev/null | sort -V | tail -n 1 || true)"
+          plugin_src="$(git ls-files | grep -E '(^|/)wonder-payments\.php$' | head -n 1 | xargs -I{} dirname "{}")"
+          if [ -z "$plugin_src" ]; then
+            plugin_src="$(ls -d wp-content/plugins/plugin-woo-commerce-* 2>/dev/null | sort -V | tail -n 1 || true)"
+          fi
           if [ -z "$plugin_src" ]; then
             plugin_src="wp-content/plugins/wonder-payments"
           fi
@@ -26,6 +29,7 @@ jobs:
             echo "Plugin source directory not found."
             exit 1
           fi
+          echo "Using plugin source: $plugin_src"
           rm -rf dist wonder-payments.zip
           mkdir -p dist/wonder-payments
           rsync -a \
