@@ -62,22 +62,28 @@ class PaymentSDK
     /**
      * Initialize QR code login constants
      *
-     * @param string $environment Environment ('stg' or 'prod')
+     * @param string $environment Environment ('stg', 'alpha', or 'prod')
      */
     private function initQRCodeConstants($environment)
     {
-        if ($environment === 'prod') {
-            // Production environment configuration (TBD)
-            $this->qrCodeClientId = ''; // TBD
-            $this->qrCodeAppKey = ''; // TBD
-            $this->qrCodeAppSlug = ''; // TBD
-            $this->qrCodeLinkClientId = ''; // TBD
+        if ($environment === 'alpha') {
+            // Alpha environment configuration
+            $this->qrCodeClientId = '2adf8123-d65e-435e-a7c2-e0f90edd2b3d';
+            $this->qrCodeAppKey = '6bad4911-baa7-4588-997c-09d23d1072df';
+            $this->qrCodeAppSlug = 'JgG9C';
+            $this->qrCodeLinkClientId = '2adf8123-d65e-435e-a7c2-e0f90edd2b3d';
+        } elseif ($environment === 'prod') {
+            // Production environment configuration
+            $this->qrCodeClientId = '17175e11-d12b-43a1-b00e-ceca79876f45';
+            $this->qrCodeAppKey = '9a54ed52-7a2c-4d08-aabc-4e1c548fff02';
+            $this->qrCodeAppSlug = '3rTiiv';
+            $this->qrCodeLinkClientId = '17175e11-d12b-43a1-b00e-ceca79876f45';
         } else {
             // Test environment configuration
             $this->qrCodeClientId = 'c4a2b6cf-983a-4117-b75f-bbeac3897c0f';
             $this->qrCodeAppKey = '02eb3362-1ccb-4063-8f5e-825fde761efb';
             $this->qrCodeAppSlug = '3Kswi8';
-            $this->qrCodeLinkClientId = '3b95c5102ac5973893fdb3b64bce4206';
+            $this->qrCodeLinkClientId = 'c4a2b6cf-983a-4117-b75f-bbeac3897c0f';
         }
     }
 
@@ -231,7 +237,13 @@ class PaymentSDK
     private function _request($method, $uri, $queryParams = array(), $body = array()) {
         // Build complete URL
         $environment = isset($this->options['environment']) ? $this->options['environment'] : 'stg';
-        $apiEndpoint = ($environment === 'prod') ? 'https://gateway.wonder.today' : 'https://gateway-stg.wonder.today';
+        if ($environment === 'prod') {
+            $apiEndpoint = 'https://gateway.wonder.today';
+        } elseif ($environment === 'alpha') {
+            $apiEndpoint = 'https://gateway-alpha.wonder.today';
+        } else {
+            $apiEndpoint = 'https://gateway-stg.wonder.today';
+        }
         $fullUrl = $apiEndpoint . $uri;
 
         // Add query parameters to URL if present
@@ -555,9 +567,13 @@ class PaymentSDK
     private function getQRCodeBaseUrl()
     {
         $environment = isset($this->options['environment']) ? $this->options['environment'] : 'stg';
-        return ($environment === 'prod')
-            ? 'https://main.bindo.co'
-            : 'https://main-stg.bindo.co';
+        if ($environment === 'prod') {
+            return 'https://main.bindo.co';
+        }
+        if ($environment === 'alpha') {
+            return 'https://main-alpha.bindo.co';
+        }
+        return 'https://main-stg.bindo.co';
     }
 
     /**
@@ -568,9 +584,13 @@ class PaymentSDK
     private function getQRCodeGatewayBaseUrl()
     {
         $environment = isset($this->options['environment']) ? $this->options['environment'] : 'stg';
-        return ($environment === 'prod')
-            ? 'https://gateway.wonder.app'
-            : 'https://gateway-stg.wonder.app';
+        if ($environment === 'prod') {
+            return 'https://gateway.wonder.app';
+        }
+        if ($environment === 'alpha') {
+            return 'https://gateway-alpha.wonder.app';
+        }
+        return 'https://gateway-stg.wonder.app';
     }
 
     /**
@@ -723,6 +743,21 @@ class PaymentSDK
      */
     private function makeQRCodeRequest($method, $url, $headers, $body = null)
     {
+        $logger = null;
+        if (function_exists('wc_get_logger')) {
+            $logger = wc_get_logger();
+        }
+
+        $redactedHeaders = [];
+        foreach ($headers as $header) {
+            if (stripos($header, 'authorization:') === 0 || stripos($header, 'x-user-access-token:') === 0) {
+                $parts = explode(':', $header, 2);
+                $redactedHeaders[] = $parts[0] . ': ***';
+            } else {
+                $redactedHeaders[] = $header;
+            }
+        }
+
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -746,6 +781,16 @@ class PaymentSDK
         $error = curl_error($ch);
 
         if ($error) {
+            if ($logger) {
+                $logger->error('SDK request cURL error', [
+                    'source' => 'wonder-payments',
+                    'method' => $method,
+                    'url' => $url,
+                    'headers' => $redactedHeaders,
+                    'body' => $body,
+                    'error' => $error
+                ]);
+            }
             curl_close($ch);
             throw new \Exception('cURL error: ' . $error);
         }
@@ -759,15 +804,60 @@ class PaymentSDK
             $errorMessage = !empty($responseData['error_message'])
                 ? $responseData['error_message']
                 : (!empty($responseData['message']) ? $responseData['message'] : 'Unknown error');
+            if ($logger) {
+                $logger->error('SDK request API error', [
+                    'source' => 'wonder-payments',
+                    'method' => $method,
+                    'url' => $url,
+                    'headers' => $redactedHeaders,
+                    'body' => $body,
+                    'http_status' => $httpCode,
+                    'response' => $responseData
+                ]);
+            }
             throw new \Exception('API error: ' . $errorMessage);
         }
 
         if ($httpCode >= 400) {
+            if ($logger) {
+                $logger->error('SDK request HTTP error', [
+                    'source' => 'wonder-payments',
+                    'method' => $method,
+                    'url' => $url,
+                    'headers' => $redactedHeaders,
+                    'body' => $body,
+                    'http_status' => $httpCode,
+                    'response' => $response
+                ]);
+            }
             throw new \Exception('API request failed, HTTP status: ' . $httpCode . ', Response: ' . $response);
         }
 
         if ($responseData === null) {
+            if ($logger) {
+                $logger->error('SDK request invalid JSON', [
+                    'source' => 'wonder-payments',
+                    'method' => $method,
+                    'url' => $url,
+                    'headers' => $redactedHeaders,
+                    'body' => $body,
+                    'http_status' => $httpCode,
+                    'response' => $response
+                ]);
+            }
             throw new \Exception('Failed to parse API response: ' . $response);
+        }
+
+        if ($logger) {
+            $logger->debug('SDK request success', [
+                'source' => 'wonder-payments',
+                'method' => $method,
+                'url' => $url,
+                'headers' => $redactedHeaders,
+                'body' => $body,
+                'http_status' => $httpCode,
+                'response' => $responseData
+            ]);
         }
 
         return $responseData;
@@ -853,11 +943,15 @@ class PaymentSDK
             throw new \Exception('Public Key is required');
         }
 
-        // URL format: https://main-stg.bindo.co/svc/user/api/v1/{business_id}/app
+        // URL format: https://main-<env>.bindo.co/svc/user/api/v1/{business_id}/app
         $environment = isset($this->options['environment']) ? $this->options['environment'] : 'stg';
-        $baseUrl = ($environment === 'prod')
-            ? 'https://main.bindo.co'
-            : 'https://main-stg.bindo.co';
+        if ($environment === 'prod') {
+            $baseUrl = 'https://main.bindo.co';
+        } elseif ($environment === 'alpha') {
+            $baseUrl = 'https://main-alpha.bindo.co';
+        } else {
+            $baseUrl = 'https://main-stg.bindo.co';
+        }
 
         $url = $baseUrl . '/svc/user/api/v1/' . $businessId . '/app';
         $requestId = $this->generateUUIDv4();
@@ -884,5 +978,135 @@ class PaymentSDK
             'signature_public_key' => $publicKeyBase64
         ]);
         return $this->makeQRCodeRequest('POST', $url, $headers, $body);
+    }
+
+    /**
+     * Fetch current user info by access token
+     *
+     * @return array
+     * @throws \Exception
+     */
+    public function getUserInfo()
+    {
+        if (empty($this->userAccessToken)) {
+            throw new \Exception('User Access Token is required to fetch user info');
+        }
+
+        $url = $this->getQRCodeBaseUrl() . '/user/b2c/me';
+        $requestId = $this->generateUUIDv4();
+
+        $headers = [
+            'x-app-key: ' . $this->qrCodeAppKey,
+            'x-app-slug: ' . $this->qrCodeAppSlug,
+            'x-client-id: ' . $this->qrCodeClientId,
+            'x-i18n-lang: ' . $this->language,
+            'x-internal: TRUE',
+            'x-request-id: ' . $requestId,
+            'x-user-access-token: ' . $this->userAccessToken,
+            'Accept: application/json'
+        ];
+
+        return $this->makeQRCodeRequest('GET', $url, $headers, null);
+    }
+
+    /**
+     * Sandbox public login
+     *
+     * @param string $referenceId
+     * @return array
+     * @throws \Exception
+     */
+    public function sandboxPublicLogin($referenceId)
+    {
+        if (empty($this->userAccessToken)) {
+            throw new \Exception('User Access Token is required for sandbox public login');
+        }
+
+        if (empty($referenceId)) {
+            throw new \Exception('reference_id is required for sandbox public login');
+        }
+
+        $requestId = $this->generateUUIDv4();
+
+//        $headers = [
+//            'x-app-key: 6bad4911-baa7-4588-997c-09d23d1072df',
+//            'x-app-slug: JgG9C',
+//            'x-client-id: c4a2b6cf-983a-4117-b75f-bbeac3897c0f',
+//            'x-i18n-lang: zh-CN',
+//            'x-internal: TRUE',
+//            'x-request-id: ' . $requestId,
+//            'x-user-access-token: ' . $this->userAccessToken,
+//            'Accept: application/json',
+//            'Content-Type: application/json'
+//        ];
+        $headers = [
+            'x-app-key: ' . $this->qrCodeAppKey,
+            'x-app-slug: ' . $this->qrCodeAppSlug,
+            'x-client-id: ' . $this->qrCodeClientId,
+            'x-i18n-lang: ' . $this->language,
+            'x-internal: TRUE',
+            'x-request-id: ' . $requestId,
+            'x-user-access-token: ' . $this->userAccessToken,
+            'Accept: application/json',
+            'Content-Type: application/json'
+        ];
+
+        $body = json_encode([
+            'reference_id' => $referenceId
+        ]);
+
+        $url = 'https://main-stg.bindo.co/svc/user/public/login';
+        return $this->makeQRCodeRequest('POST', $url, $headers, $body);
+    }
+
+    /**
+     * Sandbox onboarding business
+     *
+     * @param string $sandboxUserId
+     * @param string $sandboxUserToken
+     * @param string $pBusinessId
+     * @param string $sandboxBusinessName
+     * @return array
+     * @throws \Exception
+     */
+    public function sandboxOnboardingBusiness($sandboxUserId, $sandboxUserToken, $pBusinessId, $sandboxBusinessName = '')
+    {
+        if (empty($this->userAccessToken)) {
+            throw new \Exception('User Access Token is required for sandbox onboarding');
+        }
+        if (empty($sandboxUserId) || empty($sandboxUserToken)) {
+            throw new \Exception('sandbox_user_id and sandbox_user_token are required');
+        }
+        if (empty($pBusinessId)) {
+            throw new \Exception('p_business_id is required');
+        }
+
+        $requestId = $this->generateUUIDv4();
+        $url = 'https://gateway-alpha.wonder.app/api/registry/onboarding/sandbox/business';
+
+        $headers = [
+            'x-app-key: 6bad4911-baa7-4588-997c-09d23d1072df',
+            'x-app-slug: JgG9C',
+            'x-client-id: 2adf8123-d65e-435e-a7c2-e0f90edd2b3d',
+            'x-i18n-lang: zh-CN',
+            'x-internal: TRUE',
+            'x-p-business-id: ' . $pBusinessId,
+            'x-request-id: ' . $requestId,
+            'x-user-access-token: ' . $this->userAccessToken,
+            'Accept: application/json',
+            'Content-Type: application/json'
+        ];
+
+        $body = [
+            'sandbox_user_id' => $sandboxUserId,
+            'sandbox_user_token' => $sandboxUserToken,
+            'p_business_id' => $pBusinessId
+        ];
+
+        if (!empty($sandboxBusinessName)) {
+            $body['sandbox_business_name'] = $sandboxBusinessName;
+        }
+
+        return $this->makeQRCodeRequest('POST', $url, $headers, json_encode($body));
     }
 }

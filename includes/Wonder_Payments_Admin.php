@@ -1143,6 +1143,23 @@ class Wonder_Payments_Admin {
                                             success: function(response) {
                                                 console.log('Access Token saved to backend:', response);
 
+                                                // Fetch user info so it shows up in Network
+                                                $.ajax({
+                                                    url: ajaxurl,
+                                                    method: 'POST',
+                                                    data: {
+                                                        action: 'wonder_payments_sdk_get_user_info',
+                                                        security: "<?php echo esc_attr( wp_create_nonce( 'wonder_payments_modal_nonce' ) ); ?>",
+                                                        access_token: data.access_token
+                                                    },
+                                                    success: function(userInfoResponse) {
+                                                        console.log('User info response:', userInfoResponse);
+                                                    },
+                                                    error: function(xhr, status, error) {
+                                                        console.error('Failed to fetch user info:', error);
+                                                    }
+                                                });
+
                                                 // If business_id is empty, get it from the business list
                                                 if (!data.business_id) {
                                                     console.log('Business ID is empty, fetching from business list...');
@@ -1169,6 +1186,13 @@ class Wonder_Payments_Admin {
                                                         }
                                                     });
                                                 }
+
+                                                // Auto-jump to business selection after save completes
+                                                setTimeout(function() {
+                                                    console.log('Redirecting to business selection page');
+                                                    // Click the "Choose business connect this shop" menu item
+                                                    $('.menu-item[data-tab="business"]').click();
+                                                }, 2000);
                                             },
                                             error: function(xhr, status, error) {
                                                 console.error('Failed to save access token to backend:', error);
@@ -1184,12 +1208,6 @@ class Wonder_Payments_Admin {
 // Show scan success message
                                         showScanSuccess();
 
-                                        // Auto-jump to business selection after 2 seconds
-                                        setTimeout(function() {
-                                            console.log('Redirecting to business selection page');
-                                            // Click the "Choose business connect this shop" menu item
-                                            $('.menu-item[data-tab="business"]').click();
-                                        }, 2000);
                                     }
 
                                     // QR code expired
@@ -1298,16 +1316,12 @@ class Wonder_Payments_Admin {
 
 
 
-                    if (!businessId || !accessToken) {
-
-                        console.error('Business ID or Access Token not found');
+                    if (!accessToken) {
+                        console.error('Access Token not found');
 
                         // Show hint message
-
                         $('.cards-container').html('<div class="no-business">Please scan QR code to login first</div>');
-
                         return;
-
                     }
 
 
@@ -1688,7 +1702,7 @@ class Wonder_Payments_Admin {
                 }
 
                 // Generate key pair only, do not generate app_id
-                function generateKeyPairOnly(businessId) {
+                function generateKeyPairOnly(businessId, onSuccess, onError) {
                     console.log('Generating key pair only for business:', businessId);
 
                     // Clear app_id input and reset button state first
@@ -1702,7 +1716,8 @@ class Wonder_Payments_Admin {
                             action: 'wonder_payments_generate_key_pair_only',
                             security: '<?php echo esc_attr( wp_create_nonce( "wonder_payments_modal_nonce" ) ); ?>',
                             business_id: businessId
-                        },                						success: function(response) {
+                        },
+                        success: function(response) {
                             console.log('Key pair generated:', response);
                             console.log('Response success:', response.success);
                             console.log('Response data:', response.data);
@@ -1753,16 +1768,25 @@ class Wonder_Payments_Admin {
                                     $('#create-app-id-btn').text('Create').prop('disabled', false);
                                     setMenuLock(false);
                                 }
+                                if (typeof onSuccess === 'function') {
+                                    onSuccess();
+                                }
                             } else {
+                                if (typeof onError === 'function') {
+                                    onError(response);
+                                }
                             }
                         },
                         error: function(xhr, status, error) {
                             console.error('Generate key pair error:', error);
+                            if (typeof onError === 'function') {
+                                onError(error);
+                            }
                         }
                     });
                 }
                 // Generate app_id only, using saved public key
-                function generateAppIdOnly(businessId, businessName) {
+                function generateAppIdOnly(businessId, businessName, onSuccess, onError) {
                     console.log('Generating app_id only for business:', businessId);
 
                     // Show loading
@@ -1814,17 +1838,30 @@ class Wonder_Payments_Admin {
                                         $('.menu-item[data-tab="settings"]').click();
                                         console.log('Settings tab clicked');
                                     }, 500);
+
+                                    if (typeof onSuccess === 'function') {
+                                        onSuccess();
+                                    }
                                 } else {
                                     $('#create-app-id-btn').text('Create').prop('disabled', false);
+                                    if (typeof onError === 'function') {
+                                        onError(response);
+                                    }
                                 }
                             } else {
                                 $('#create-app-id-btn').text('Create').prop('disabled', false);
+                                if (typeof onError === 'function') {
+                                    onError(response);
+                                }
                             }
                         },
                         error: function(xhr, status, error) {
                             console.error('Create App ID error:', error);
                             console.error('Response:', xhr.responseText);
                             $('#create-app-id-btn').text('Create').prop('disabled', false);
+                            if (typeof onError === 'function') {
+                                onError(error);
+                            }
                         }
                     });
                 }
@@ -1914,7 +1951,7 @@ class Wonder_Payments_Admin {
                 }
 
                 // Save Settings
-                function saveSettings() {
+                function saveSettings(skipRegen) {
                     console.log('Saving settings');
 
                     var settings = {
@@ -1940,10 +1977,54 @@ class Wonder_Payments_Admin {
                         },
                         success: function(response) {
                             console.log('Settings saved:', response);
+                            if (response && response.success) {
+                                console.log('Settings saved successfully');
+                            } else {
+                                console.error('Settings save failed:', response && response.data ? response.data : response);
+                            }
 
                             if (response.success) {
-                                // Close modal
-                                $('#close-wonder-modal').click();
+                                var envChanged = response.data && response.data.environment_changed;
+                                if (envChanged && !skipRegen) {
+                                    console.log('Environment changed; regenerating key pair and app_id');
+
+                                    $('#app-id-input').val('');
+                                    $('#private-key-input').val('');
+                                    $('#public-key-input').val('');
+                                    $('#webhook-key-input').val('');
+
+                                    var businessId = localStorage.getItem('wonder_selected_business_id') || localStorage.getItem('wonder_business_id');
+                                    var businessName = localStorage.getItem('wonder_selected_business_name') || '';
+
+                                    if (businessId) {
+                                        generateKeyPairOnly(
+                                            businessId,
+                                            function() {
+                                                generateAppIdOnly(
+                                                    businessId,
+                                                    businessName,
+                                                    function() {
+                                                        // Persist generated values to settings, then close modal.
+                                                        saveSettings(true);
+                                                    },
+                                                    function() {
+                                                        $('#save-settings-btn').text('Save').prop('disabled', false);
+                                                    }
+                                                );
+                                            },
+                                            function() {
+                                                $('#save-settings-btn').text('Save').prop('disabled', false);
+                                            }
+                                        );
+                                    } else {
+                                        console.warn('No businessId found for regeneration');
+                                    }
+                                }
+
+                                if (!envChanged || skipRegen) {
+                                    // Close modal
+                                    $('#close-wonder-modal').click();
+                                }
                             } else {
                             }
 

@@ -339,7 +339,13 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
         if ($environment !== 'prod' && $environment !== 'stg') {
             $environment = 'prod';
         }
-        $api_endpoint = ($environment === 'prod') ? 'https://gateway.wonder.today' : 'https://gateway-stg.wonder.today';
+        if ($environment === 'prod') {
+            $api_endpoint = 'https://gateway.wonder.today';
+        } elseif ($environment === 'alpha') {
+            $api_endpoint = 'https://gateway-alpha.wonder.app';
+        } else {
+            $api_endpoint = 'https://gateway-stg.wonder.today';
+        }
 
         try {
             // Generate 4096-bit RSA key pair
@@ -401,7 +407,7 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
     public function get_environment() {
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $environment = isset($settings['environment']) ? $settings['environment'] : 'prod';
-        if ($environment !== 'prod' && $environment !== 'stg') {
+        if ($environment !== 'prod' && $environment !== 'stg' && $environment !== 'alpha') {
             $environment = 'prod';
         }
         return $environment;
@@ -496,7 +502,13 @@ class WC_Wonder_Payments_Gateway extends WC_Payment_Gateway
 
         // Log current environment config
         $environment = $this->get_environment();
-        $api_endpoint = ($environment === 'prod') ? 'https://gateway.wonder.today' : 'https://gateway-stg.wonder.today';
+        if ($environment === 'prod') {
+            $api_endpoint = 'https://gateway.wonder.today';
+        } elseif ($environment === 'alpha') {
+            $api_endpoint = 'https://gateway-alpha.wonder.app';
+        } else {
+            $api_endpoint = 'https://gateway-stg.wonder.today';
+        }
 
         $logger = $this->get_logger();
         $logger->debug('Payment init - credentials snapshot', array(
