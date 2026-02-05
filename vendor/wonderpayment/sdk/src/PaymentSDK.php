@@ -783,7 +783,7 @@ class PaymentSDK
         if ($error) {
             if ($logger) {
                 $logger->error('SDK request cURL error', [
-                    'source' => 'wonder-payments',
+                    'source' => 'wonderpay-gateway-for-woocommerce',
                     'method' => $method,
                     'url' => $url,
                     'headers' => $redactedHeaders,
@@ -806,7 +806,7 @@ class PaymentSDK
                 : (!empty($responseData['message']) ? $responseData['message'] : 'Unknown error');
             if ($logger) {
                 $logger->error('SDK request API error', [
-                    'source' => 'wonder-payments',
+                    'source' => 'wonderpay-gateway-for-woocommerce',
                     'method' => $method,
                     'url' => $url,
                     'headers' => $redactedHeaders,
@@ -821,7 +821,7 @@ class PaymentSDK
         if ($httpCode >= 400) {
             if ($logger) {
                 $logger->error('SDK request HTTP error', [
-                    'source' => 'wonder-payments',
+                    'source' => 'wonderpay-gateway-for-woocommerce',
                     'method' => $method,
                     'url' => $url,
                     'headers' => $redactedHeaders,
@@ -836,7 +836,7 @@ class PaymentSDK
         if ($responseData === null) {
             if ($logger) {
                 $logger->error('SDK request invalid JSON', [
-                    'source' => 'wonder-payments',
+                    'source' => 'wonderpay-gateway-for-woocommerce',
                     'method' => $method,
                     'url' => $url,
                     'headers' => $redactedHeaders,
@@ -850,7 +850,7 @@ class PaymentSDK
 
         if ($logger) {
             $logger->debug('SDK request success', [
-                'source' => 'wonder-payments',
+                'source' => 'wonderpay-gateway-for-woocommerce',
                 'method' => $method,
                 'url' => $url,
                 'headers' => $redactedHeaders,

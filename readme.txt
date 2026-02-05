@@ -1,4 +1,4 @@
-=== Wonder Payment For Wooemmerce ===
+=== WonderPay Gateway for WooCommerce ===
 Contributors: yourname
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
@@ -12,7 +12,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
 
-Wonder Payment For Wooemmerce is a payment gateway plugin that allows you to accept payments through Wonder Payment. With just 7 minutes of onboarding, you can start accepting 34+ different payment methods.
+WonderPay Gateway for WooCommerce is a payment gateway plugin that allows you to accept payments through Wonder Payment. With just 7 minutes of onboarding, you can start accepting 34+ different payment methods.
 
 == Installation ==
 
