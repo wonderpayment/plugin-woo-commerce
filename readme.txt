@@ -3,7 +3,7 @@ Contributors: yourname
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -24,5 +24,5 @@ Wonder Payment For Wooemmerce is a payment gateway plugin that allows you to acc
 
 == Changelog ==
 
-= 1.0.0 =
+= 1.0.1 =
 * Initial release
