@@ -1,12 +1,12 @@
 <?php
 /*
-Plugin Name: Wonder Payment For Wooemmerce
+Plugin Name: WonderPay Gateway for WooCommerce
 Plugin URI: http://localhost:8888/wp-admin/about.php
 Description: 7 minutes onboarding, then accepted 34+ payment methods
 Version: 1.0.0
-Author: Your Name
+Author: wonder
 License: GPL v2 or later
-Text Domain: wonder-payments
+Text Domain: wonderpay-gateway-for-woocommerce
 */
 
 // Note.
@@ -93,7 +93,7 @@ function wonder_payments_init_gateway()
 function wonder_payments_add_modal_link($link, $gateway_id) {
     if ($gateway_id === 'wonder_payments') {
         // Note.
-        $link = '<a href="#" class="wonder-payments-manage-link" data-gateway-id="wonder-payments">' . esc_html__('Manage', 'wonder-payments') . '</a>';
+        $link = '<a href="#" class="wonder-payments-manage-link" data-gateway-id="wonder-payments">' . esc_html__('Manage', 'wonderpay-gateway-for-woocommerce') . '</a>';
     }
     return $link;
 }
@@ -106,11 +106,11 @@ function wonder_payments_ajax_sync_order_status() {
         wp_send_json_error('WooCommerce not loaded');
     }
 
-    if (!class_exists('WC_Wonder_Payments_Gateway')) {
+    if (!class_exists('Wonderpay_Gateway_For_Woocommerce_Gateway')) {
         require_once dirname(__FILE__) . '/includes/class-wonder-payments-gateway.php';
     }
 
-    $gateway = new WC_Wonder_Payments_Gateway();
+    $gateway = new Wonderpay_Gateway_For_Woocommerce_Gateway();
     $gateway->ajax_sync_order_status();
 }
 
@@ -120,11 +120,11 @@ function wonder_payments_ajax_sync_order_status() {
  */
 function wonder_payments_plugin_action_links($actions, $plugin_file, $plugin_data, $context) {
     // Note.
-    if (strpos($plugin_file, 'wonder-payments.php') !== false && $context === 'active') {
+    if (strpos($plugin_file, 'wonderpay-gateway-for-woocommerce.php') !== false && $context === 'active') {
         // Note.
-        $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonder-payments') . '</a>';
-        $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonder-payments') . '</a>';
-        $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonder-payments') . '</a>';
+        $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonderpay-gateway-for-woocommerce') . '</a>';
+        $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonderpay-gateway-for-woocommerce') . '</a>';
+        $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonderpay-gateway-for-woocommerce') . '</a>';
     }
 
     return $actions;
@@ -135,17 +135,17 @@ function wonder_payments_plugin_action_links($actions, $plugin_file, $plugin_dat
  */
 function wonder_payments_gateway_menu_links($actions, $plugin_file, $plugin_data, $context) {
     // Note.
-    $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonder-payments') . '</a>';
-    $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonder-payments') . '</a>';
-    $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonder-payments') . '</a>';
-    $actions['hide_suggestions'] = '<a href="#" class="wonder-payments-hide-suggestions" data-nonce="' . wp_create_nonce('wonder_payments_hide_suggestions') . '">' . esc_html__('Hide suggestions', 'wonder-payments') . '</a>';
+    $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonderpay-gateway-for-woocommerce') . '</a>';
+    $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonderpay-gateway-for-woocommerce') . '</a>';
+    $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonderpay-gateway-for-woocommerce') . '</a>';
+    $actions['hide_suggestions'] = '<a href="#" class="wonder-payments-hide-suggestions" data-nonce="' . wp_create_nonce('wonder_payments_hide_suggestions') . '">' . esc_html__('Hide suggestions', 'wonderpay-gateway-for-woocommerce') . '</a>';
 
     return $actions;
 }
 
 function wonder_payments_add_gateway($gateways)
 {
-    $gateways[] = 'WC_Wonder_Payments_Gateway';
+    $gateways[] = 'Wonderpay_Gateway_For_Woocommerce_Gateway';
     return $gateways;
 }
 
@@ -158,7 +158,7 @@ function wonder_payments_register_blocks_support($payment_method_registry) {
     }
 
     require_once dirname(__FILE__) . '/includes/class-wonder-payments-blocks-support.php';
-    $payment_method_registry->register(new WC_Wonder_Payments_Blocks_Support());
+    $payment_method_registry->register(new Wonderpay_Gateway_For_Woocommerce_Blocks_Support());
 }
 
 /**
@@ -381,7 +381,7 @@ function wonder_payments_add_status_column($columns) {
         
         // Note.
         if ($key === 'status') {
-            $new_columns['wonder_status'] = __('Configuration status', 'wonder-payments');
+            $new_columns['wonder_status'] = __('Configuration status', 'wonderpay-gateway-for-woocommerce');
         }
     }
     return $new_columns;
@@ -401,7 +401,7 @@ function wonder_payments_render_status_column($gateway) {
     if (method_exists($gateway, 'get_admin_status_html')) {
         echo wp_kses_post($gateway->get_admin_status_html());
     } else {
-        echo esc_html__('Unknown', 'wonder-payments');
+        echo esc_html__('Unknown', 'wonderpay-gateway-for-woocommerce');
     }
 }
 
@@ -435,7 +435,7 @@ function wonder_payments_wc_notice()
 {
     echo '<div class="error"><p>';
     /* translators: Admin notice when WooCommerce is not installed or activated */
-    echo esc_html__('Wonder Payments requires WooCommerce to be installed and activated.', 'wonder-payments');
+    echo esc_html__('Wonder Payments requires WooCommerce to be installed and activated.', 'wonderpay-gateway-for-woocommerce');
     echo '</p></div>';
 }
 
@@ -635,14 +635,14 @@ function wonder_payments_check_expired_orders()
             // Note.
             $order->update_status('cancelled', sprintf(
                 /* translators: %s: number of days */
-                __('Order cancelled automatically due to payment expiry (%s days)', 'wonder-payments'),
+                __('Order cancelled automatically due to payment expiry (%s days)', 'wonderpay-gateway-for-woocommerce'),
                 $due_days
             ));
 
             // Note.
             $order->add_order_note(sprintf(
                 /* translators: %1$s: order creation date, %2$s: due days */
-                __('Order created on %1$s and cancelled after %2$s days due to payment expiry.', 'wonder-payments'),
+                __('Order created on %1$s and cancelled after %2$s days due to payment expiry.', 'wonderpay-gateway-for-woocommerce'),
                 $order_date->date_i18n('Y-m-d H:i:s'),
                 $due_days
             ));
@@ -653,9 +653,9 @@ function wonder_payments_check_expired_orders()
 
     $logger = wonder_payments_get_logger();
     if ($cancelled_count > 0) {
-        $logger->info('Cancelled ' . $cancelled_count . ' expired orders', array( 'source' => 'wonder-payments' ));
+        $logger->info('Cancelled ' . $cancelled_count . ' expired orders', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
     } else {
-        $logger->debug('No expired orders to cancel', array( 'source' => 'wonder-payments' ));
+        $logger->debug('No expired orders to cancel', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
     }
 }
 
@@ -799,7 +799,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
         );
         
                 $logger = wonder_payments_get_logger();
-                $logger->debug('SDK Options initialized', array( 'source' => 'wonder-payments' ));
+                $logger->debug('SDK Options initialized', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
         
         
                 // Note.
@@ -828,7 +828,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
             $business_id = isset($result['business']['id']) ? $result['business']['id'] : 'Unknown';
 
             /* translators: %1$s: business name, %2$s: business ID */
-            $message = sprintf(__('Successful connect to business: %1$s (%2$s)', 'wonder-payments'), $business_name, $business_id);
+            $message = sprintf(__('Successful connect to business: %1$s (%2$s)', 'wonderpay-gateway-for-woocommerce'), $business_name, $business_id);
 
             return array(
                 'success' => true,
@@ -1094,31 +1094,31 @@ function wonder_payments_admin_scripts($hook)
             /* translators: Label for the public key field */
 
 
-            'public_key_label' => __('Public Key (upload to Wonder Portal):', 'wonder-payments'),
+            'public_key_label' => __('Public Key (upload to Wonder Portal):', 'wonderpay-gateway-for-woocommerce'),
 
 
             /* translators: Important notice label */
 
 
-            'important' => __('Important:', 'wonder-payments'),
+            'important' => __('Important:', 'wonderpay-gateway-for-woocommerce'),
 
 
             /* translators: Instruction to save private key */
 
 
-            'save_changes' => __('Please click "Save changes" to save the private key.', 'wonder-payments'),
+            'save_changes' => __('Please click "Save changes" to save the private key.', 'wonderpay-gateway-for-woocommerce'),
 
 
             /* translators: Instruction to enter App ID and Private Key */
 
 
-            'enter_fields' => __('Please enter App ID and Private Key first.', 'wonder-payments'),
+            'enter_fields' => __('Please enter App ID and Private Key first.', 'wonderpay-gateway-for-woocommerce'),
 
 
             /* translators: Error message label */
 
 
-            'error' => __('Error:', 'wonder-payments')
+            'error' => __('Error:', 'wonderpay-gateway-for-woocommerce')
 
 
         )
@@ -1301,14 +1301,31 @@ function wonder_payments_sdk_create_qrcode() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
+        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        $jwtToken = ($environment === 'prod')
+            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+
+        if ($sandbox_mode === '1') {
+            $sandboxLogin = get_option('wonder_payments_sandbox_public_login', array());
+            $sandboxBusiness = get_option('wonder_payments_sandbox_business', array());
+            if (isset($sandboxLogin['data']['access_token'])) {
+                $userAccessToken = $sandboxLogin['data']['access_token'];
+            }
+            if (isset($sandboxBusiness['data']['p_business_id'])) {
+                $businessId = $sandboxBusiness['data']['p_business_id'];
+            }
+        }
         // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
             'webhookVerifyPublicKey' => get_option('wonder_payments_public_key', ''),
-            'environment' => 'stg',
-            'jwtToken' => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I',
-            'language' => 'en-US'
+            'environment' => $environment,
+            'jwtToken' => $jwtToken,
+            'language' => $language
         ]);
         // Note.
         $qrCode = $sdk->createQRCode();
@@ -1345,15 +1362,21 @@ function wonder_payments_sdk_qrcode_status() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
+        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        $jwtToken = ($environment === 'prod')
+            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
             'webhookVerifyPublicKey' => get_option('wonder_payments_public_key', ''),
-            'environment' => 'stg',
-            'jwtToken' => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBpZCI6IjgwYTk4NGUyLTRlYzQtNGQwNi1hYmE5LWU0MzAxMDk1NmUxMyIsImlhdCI6MTY4MTM5MjM5MiwiZXhwIjoxOTk2NzUyMzkyfQ.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I',
-            'language' => 'en-US'
+            'environment' => $environment,
+            'jwtToken' => $jwtToken,
+            'language' => $language
         ]);
 
         // Note.
@@ -1381,6 +1404,12 @@ function wonder_payments_sdk_get_businesses() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
+        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        $jwtToken = ($environment === 'prod')
+            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
@@ -1394,10 +1423,10 @@ function wonder_payments_sdk_get_businesses() {
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
             'webhookVerifyPublicKey' => get_option('wonder_payments_public_key', ''),
-            'environment' => 'stg',
-            'jwtToken' => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBpZCI6IjgwYTk4NGUyLTRlYzQtNGQwNi1hYmE5LWU0MzAxMDk1NmUxMyIsImlhdCI6MTY4MTM5MjM5MiwiZXhwIjoxOTk2NzUyMzkyfQ.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I',
+            'environment' => $environment,
+            'jwtToken' => $jwtToken,
             'userAccessToken' => $userAccessToken,
-            'language' => 'en-US'
+            'language' => $language
         ]);
 
         // Note.
@@ -1444,9 +1473,82 @@ function wonder_payments_sdk_save_access_token() {
     // Note.
     update_option('wonder_payments_user_access_token', $accessToken);
     update_option('wonder_payments_business_id', $businessId);
-    wp_send_json_success(array('message' => 'Access Token saved successfully'));
+
+    $settings = get_option('woocommerce_wonder_payments_settings', array());
+    $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+    $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+    $jwtToken = ($environment === 'prod')
+        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+        : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+    $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+
+    $sdk = new PaymentSDK([
+        'appid' => '',
+        'signaturePrivateKey' => '',
+        'webhookVerifyPublicKey' => '',
+        'environment' => $environment,
+        'jwtToken' => $jwtToken,
+        'userAccessToken' => $accessToken,
+        'language' => $language
+    ]);
+
+    $userInfo = $sdk->getUserInfo();
+    if (isset($userInfo['data'])) {
+        update_option('wonder_payments_user_info', $userInfo);
+    }
+
+    wp_send_json_success(array(
+        'message' => 'Access Token saved successfully',
+        'user_info' => $userInfo
+    ));
 }
 add_action('wp_ajax_wonder_payments_sdk_save_access_token', 'wonder_payments_sdk_save_access_token');
+
+/**
+ * Note.
+ */
+function wonder_payments_sdk_get_user_info() {
+    check_ajax_referer('wonder_payments_modal_nonce', 'security');
+
+    if (!current_user_can('manage_woocommerce')) {
+        wp_send_json_error(array('message' => 'Unauthorized'));
+    }
+
+    $accessToken = isset($_POST['access_token']) ? sanitize_text_field(wp_unslash($_POST['access_token'])) : '';
+    if (empty($accessToken)) {
+        wp_send_json_error(array('message' => 'Access Token is required'));
+    }
+
+    $settings = get_option('woocommerce_wonder_payments_settings', array());
+    $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+    $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+    $jwtToken = ($environment === 'prod')
+        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+        : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+    $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+
+    try {
+        $sdk = new PaymentSDK([
+            'appid' => '',
+            'signaturePrivateKey' => '',
+            'webhookVerifyPublicKey' => '',
+            'environment' => $environment,
+            'jwtToken' => $jwtToken,
+            'userAccessToken' => $accessToken,
+            'language' => $language
+        ]);
+
+        $userInfo = $sdk->getUserInfo();
+        if (isset($userInfo['data'])) {
+            update_option('wonder_payments_user_info', $userInfo);
+        }
+
+        wp_send_json_success(array('data' => $userInfo));
+    } catch (Exception $e) {
+        wp_send_json_error(array('message' => 'Failed to get user info: ' . $e->getMessage()));
+    }
+}
+add_action('wp_ajax_wonder_payments_sdk_get_user_info', 'wonder_payments_sdk_get_user_info');
 
 /**
  * Note.
@@ -1462,17 +1564,31 @@ function wonder_payments_sdk_generate_app_id() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
+        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        $jwtToken = ($environment === 'prod')
+            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
+        // Note.
+        $businessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
+        if ($sandbox_mode === '1') {
+            $sandboxLogin = get_option('wonder_payments_sandbox_public_login', array());
+            $sandboxBusiness = get_option('wonder_payments_sandbox_business', array());
+            if (isset($sandboxLogin['data']['access_token'])) {
+                $userAccessToken = $sandboxLogin['data']['access_token'];
+            }
+            if (isset($sandboxBusiness['data']['p_business_id'])) {
+                $businessId = $sandboxBusiness['data']['p_business_id'];
+            }
+        }
 
         if (empty($userAccessToken)) {
             wp_send_json_error(array('message' => 'User Access Token not found. Please scan QR code to login first.'));
         }
-
-        // Note.
-        $businessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
-
         if (empty($businessId)) {
             wp_send_json_error(array('message' => 'Business ID is required'));
         }
@@ -1498,10 +1614,10 @@ function wonder_payments_sdk_generate_app_id() {
             'appid' => $appId,
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
             'webhookVerifyPublicKey' => get_option('wonder_payments_public_key', ''),
-            'environment' => 'stg',
-            'jwtToken' => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBpZCI6IjgwYTk4NGUyLTRlYzQtNGQwNi1hYmE5LWU0MzAxMDk1NmUxMyIsImlhdCI6MTY4MTM5MjM5MiwiZXhwIjoxOTk2NzUyMzkyfQ.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I',
+            'environment' => $environment,
+            'jwtToken' => $jwtToken,
             'userAccessToken' => $userAccessToken,
-            'language' => 'en-US'
+            'language' => $language
         ]);
         
         // Note.
@@ -1759,19 +1875,38 @@ function wonder_payments_sdk_create_app_id() {
         // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
 
+        // Note.
+        $settings = get_option('woocommerce_wonder_payments_settings', array());
+        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        $jwtToken = ($environment === 'prod')
+            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
+            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+
+        if ($sandbox_mode === '1') {
+            $sandboxLogin = get_option('wonder_payments_sandbox_public_login', array());
+            $sandboxBusiness = get_option('wonder_payments_sandbox_business', array());
+            if (isset($sandboxLogin['data']['access_token'])) {
+                $userAccessToken = $sandboxLogin['data']['access_token'];
+            }
+            if (isset($sandboxBusiness['data']['p_business_id'])) {
+                $businessId = $sandboxBusiness['data']['p_business_id'];
+            }
+        }
+
         if (empty($userAccessToken)) {
             wp_send_json_error(array('message' => 'User Access Token not found. Please scan QR code to login first.'));
         }
 
-        // Note.
         $sdk = new PaymentSDK([
             'appid' => '',
             'signaturePrivateKey' => get_option('wonder_payments_private_key', ''),
             'webhookVerifyPublicKey' => '',
-            'environment' => 'stg',
-            'jwtToken' => '...',
+            'environment' => $environment,
+            'jwtToken' => $jwtToken,
             'userAccessToken' => $userAccessToken,
-            'language' => 'en-US'
+            'language' => $language
         ]);
 
         // Note.
@@ -1921,10 +2056,33 @@ function wonder_payments_save_settings() {
         }
 
         // Note.
-        $environment = ($sandboxMode === '1') ? 'stg' : 'prod';
+    $environment = ($sandboxMode === '1') ? 'stg' : 'prod';
 
     // Note.
     $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
+    $previousEnvironment = isset($wcSettings['environment']) ? $wcSettings['environment'] : '';
+    $environmentChanged = ($previousEnvironment && $previousEnvironment !== $environment);
+    if ($environmentChanged) {
+        // Environment changed: clear credentials so user must regenerate matching App ID/keys.
+        $appId = '';
+        $privateKey = '';
+        $publicKey = '';
+        $webhookPublicKey = '';
+
+        $wcSettings['app_id'] = '';
+        $wcSettings['private_key'] = '';
+        $wcSettings['generated_public_key'] = '';
+        $wcSettings['webhook_public_key'] = '';
+
+        delete_option('wonder_payments_private_key');
+        delete_option('wonder_payments_public_key');
+        delete_option('wonder_payments_webhook_key');
+        delete_option('wonder_payments_pending_private_key');
+        delete_option('wonder_payments_pending_public_key');
+        delete_option('wonder_payments_pending_webhook_key');
+        delete_option('wonder_payments_pending_app_id');
+        delete_option('wonder_payments_pending_business_id');
+    }
 
     // Note.
     $existingAppId = isset($wcSettings['app_id']) ? $wcSettings['app_id'] : '';
@@ -1948,19 +2106,26 @@ function wonder_payments_save_settings() {
         $wcSettings['sandbox_mode'] = $sandboxMode;
         $wcSettings['environment'] = $environment;
         $wcSettings['due_date'] = $dueDate;
-        if ($appId !== '') {
-            $wcSettings['app_id'] = $appId;
-        }
-        if ($privateKey !== '') {
-            $wcSettings['private_key'] = $privateKey;
-        }
-        if ($publicKey !== '') {
-            $wcSettings['generated_public_key'] = $publicKey;
-        }
-        if ($webhookPublicKey !== '') {
-            $wcSettings['webhook_public_key'] = $webhookPublicKey;
-        } elseif ($appId === '') {
+        if ($environmentChanged) {
+            $wcSettings['app_id'] = '';
+            $wcSettings['private_key'] = '';
+            $wcSettings['generated_public_key'] = '';
             $wcSettings['webhook_public_key'] = '';
+        } else {
+            if ($appId !== '') {
+                $wcSettings['app_id'] = $appId;
+            }
+            if ($privateKey !== '') {
+                $wcSettings['private_key'] = $privateKey;
+            }
+            if ($publicKey !== '') {
+                $wcSettings['generated_public_key'] = $publicKey;
+            }
+            if ($webhookPublicKey !== '') {
+                $wcSettings['webhook_public_key'] = $webhookPublicKey;
+            } elseif ($appId === '') {
+                $wcSettings['webhook_public_key'] = '';
+            }
         }
 
         // Note.
@@ -2003,19 +2168,89 @@ function wonder_payments_save_settings() {
                 $unserialized = maybe_unserialize($dbResult);
                 $logger = wonder_payments_get_logger();
                 if (is_array($unserialized)) {
-                    $logger->debug('DB Verification: Unserialized successfully', array( 'source' => 'wonder-payments' ));
-                    $logger->debug('DB Verification: Keys = ' . implode(', ', array_keys($unserialized)), array( 'source' => 'wonder-payments' ));
+                    $logger->debug('DB Verification: Unserialized successfully', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
+                    $logger->debug('DB Verification: Keys = ' . implode(', ', array_keys($unserialized)), array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
                 } else {
-                    $logger->warning('DB Verification WARNING: Failed to unserialize', array( 'source' => 'wonder-payments' ));
+                    $logger->warning('DB Verification WARNING: Failed to unserialize', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
                 }
             } else {
-                $logger->error('DB Verification ERROR: Record NOT found in wp_options table!', array( 'source' => 'wonder-payments' ));
+                $logger->error('DB Verification ERROR: Record NOT found in wp_options table!', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
             }
         } else {
-            $logger->error('Settings verification failed!', array( 'source' => 'wonder-payments' ));
+            $logger->error('Settings verification failed!', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
         }
 
-        wp_send_json_success(array('message' => 'Settings saved successfully'));
+        $sandboxDebug = array();
+        if ($sandboxMode === '1') {
+            $userInfo = get_option('wonder_payments_user_info', array());
+            $referenceId = '';
+            if (is_array($userInfo) && isset($userInfo['data']['id'])) {
+                $referenceId = $userInfo['data']['id'];
+            }
+            $accessToken = get_option('wonder_payments_user_access_token', '');
+
+            if ($referenceId && $accessToken) {
+                $jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+                $sdk = new PaymentSDK([
+                    'appid' => '',
+                    'signaturePrivateKey' => '',
+                    'webhookVerifyPublicKey' => '',
+                    'environment' => 'stg',
+                    'jwtToken' => $jwtToken,
+                    'userAccessToken' => $accessToken,
+                    'language' => 'zh-CN'
+                ]);
+
+                $sandboxDebug['public_login'] = $sdk->sandboxPublicLogin($referenceId);
+                update_option('wonder_payments_sandbox_public_login', $sandboxDebug['public_login']);
+
+                $sandboxUserId = '';
+                $sandboxUserToken = '';
+                if (isset($sandboxDebug['public_login']['data']['user_id'])) {
+                    $sandboxUserId = $sandboxDebug['public_login']['data']['user_id'];
+                }
+                if (isset($sandboxDebug['public_login']['data']['access_token'])) {
+                    $sandboxUserToken = $sandboxDebug['public_login']['data']['access_token'];
+                }
+
+                $pBusinessId = get_option('wonder_payments_business_id', '');
+                $sandboxBusinessName = get_option('wonder_payments_business_name', '');
+
+                if ($sandboxUserId && $sandboxUserToken && $pBusinessId) {
+                    $sandboxDebug['sandbox_business'] = $sdk->sandboxOnboardingBusiness(
+                        $sandboxUserId,
+                        $sandboxUserToken,
+                        $pBusinessId,
+                        $sandboxBusinessName
+                    );
+                    update_option('wonder_payments_sandbox_business', $sandboxDebug['sandbox_business']);
+                } else {
+                    $sandboxDebug['sandbox_business'] = array(
+                        'status' => 0,
+                        'body' => array(
+                            'message' => 'Missing sandbox_user_id, sandbox_user_token, or p_business_id'
+                        )
+                    );
+                }
+            } else {
+                $sandboxDebug['public_login'] = array(
+                    'status' => 0,
+                    'body' => array(
+                        'message' => 'Missing reference_id or access_token'
+                    )
+                );
+            }
+        }
+
+        $response = array(
+            'message' => 'Settings saved successfully',
+            'environment_changed' => $environmentChanged ? true : false
+        );
+        if (!empty($sandboxDebug)) {
+            $response['sandbox_debug'] = $sandboxDebug;
+        }
+
+        wp_send_json_success($response);
     } catch (Exception $e) {
         wp_send_json_error(array('message' => 'Failed to save settings: ' . $e->getMessage()));
     }
@@ -2041,7 +2276,7 @@ function wonder_payments_add_modal_to_settings_page() {
     }
 
     $logger = wonder_payments_get_logger();
-    $logger->debug('Loading modal on payment gateways list page', array( 'source' => 'wonder-payments' ));
+    $logger->debug('Loading modal on payment gateways list page', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
 
     ?>
     <!-- Note. -->
@@ -2051,7 +2286,7 @@ function wonder_payments_add_modal_to_settings_page() {
                 <!-- Note. -->
                 <div class="wonder-loading">
                     <span class="spinner is-active"></span>
-                    <?php esc_html_e('Loading...', 'wonder-payments'); ?>
+                    <?php esc_html_e('Loading...', 'wonderpay-gateway-for-woocommerce'); ?>
                 </div>
             </div>
         </div>
@@ -2233,65 +2468,97 @@ function wonder_payments_add_modal_to_settings_page() {
 
         jQuery(document).ready(function ($) {
             console.log('=== Wonder Payments: jQuery document ready ===');
-            
+
+            // Note.
+            function openWonderPaymentsModal(e) {
+                console.log('=== Wonder Payment button clicked ===');
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                }
+
+                // Note.
+                $('#wonder-settings-modal').fadeIn(300);
+
+                // Note.
+                $.ajax({
+                    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'wonder_payments_load_modal_content',
+                        security: '<?php echo esc_attr(wp_create_nonce('wonder_payments_modal_nonce')); ?>'
+                    },
+                    success: function (response) {
+                        console.log('Wonder Payments: AJAX response', response);
+                        if (response.success) {
+                            $('#wonder-modal-body').html(response.data.content);
+                        } else {
+                            $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonderpay-gateway-for-woocommerce')); ?></p>');
+                        }
+                    },
+                    error: function () {
+                        $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonderpay-gateway-for-woocommerce')); ?></p>');
+                    }
+                });
+            }
+
+            // Note.
+            var wonderManageBound = false;
+            function bindWonderManageButton() {
+                if (wonderManageBound) {
+                    return true;
+                }
+
+                var $row = $('#wonder_payments');
+                if ($row.length === 0) {
+                    $row = $('.woocommerce-list__item, tr').filter(function() {
+                        var $el = $(this);
+                        return $el.attr('id') === 'wonder_payments' || $el.data('id') === 'wonder_payments' || $el.data('gateway-id') === 'wonder_payments';
+                    });
+                }
+
+                var $manageLink = $row.find('a[href*="section=wonder_payments"]').first();
+                var $manageBtn = $manageLink.length ? $manageLink : $row.find('[data-gateway-id="wonder_payments"], .components-button.is-secondary, a').first();
+                if ($manageBtn.length === 0) {
+                    return false;
+                }
+
+                console.log('=== Wonder Payments: Found Wonder Payment button ===');
+                $manageBtn.attr('href', 'javascript:void(0)');
+                $manageBtn.removeAttr('onclick');
+                $manageBtn.off('click.wonderPayments').on('click.wonderPayments', openWonderPaymentsModal);
+
+                wonderManageBound = true;
+                return true;
+            }
+
+            // Note.
+            $(document).on(
+                'click.wonderPayments',
+                '.wonder-payments-manage-link, [data-gateway-id="wonder_payments"], a[href*="section=wonder_payments"]',
+                openWonderPaymentsModal
+            );
+
             // Note.
             var checkInterval = setInterval(function() {
-                var $manageBtns = $('.components-button.is-secondary');
-                if ($manageBtns.length > 0) {
+                if (bindWonderManageButton()) {
                     clearInterval(checkInterval);
-                    var $wonderBtn = $manageBtns.eq(0);
-                    console.log('=== Wonder Payments: Found Wonder Payment button ===');
-                    
-                    // Note.
-                    var $newBtn = $wonderBtn.clone();
-                    $newBtn.attr('href', 'javascript:void(0)');
-                    $newBtn.removeAttr('onclick');
-                    $newBtn.off();
-                    
-                    // Note.
-                    $newBtn.on('click', function(e) {
-                        console.log('=== Wonder Payment button clicked ===');
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.stopImmediatePropagation();
-                        
-                        // Note.
-                        $('#wonder-settings-modal').fadeIn(300);
-
-                        // Note.
-                        $.ajax({
-                            url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-                            type: 'POST',
-                            data: {
-                                action: 'wonder_payments_load_modal_content',
-                                security: '<?php echo esc_attr(wp_create_nonce('wonder_payments_modal_nonce')); ?>'
-                            },
-                            success: function (response) {
-                                console.log('Wonder Payments: AJAX response', response);
-                                if (response.success) {
-                                    $('#wonder-modal-body').html(response.data.content);
-                                } else {
-                                    $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonder-payments')); ?></p>');
-                                }
-                            },
-                            error: function () {
-                                $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonder-payments')); ?></p>');
-                            }
-                        });
-                        
-                        return false;
-                    });
-                    
-                    // Note.
-                    $wonderBtn.replaceWith($newBtn);
-                    console.log('=== Wonder Payments: Button replaced ===');
                 }
             }, 100);
-            
+
             // Note.
             setTimeout(function() {
                 clearInterval(checkInterval);
             }, 5000);
+
+            // Note.
+            if (window.MutationObserver) {
+                var observer = new MutationObserver(function() {
+                    bindWonderManageButton();
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            }
 
             // Note.
             $(document).on('click', '#close-wonder-modal', function () {
@@ -2364,7 +2631,7 @@ function wonder_payments_add_modal_to_settings_page() {
                 localStorage.setItem('wonder_payments_suggestions_hidden', 'true');
 
                 // Note.
-                alert('<?php echo esc_js(__('Suggestions hidden', 'wonder-payments')); ?>');
+                alert('<?php echo esc_js(__('Suggestions hidden', 'wonderpay-gateway-for-woocommerce')); ?>');
             });
 
             // Note.
@@ -2383,7 +2650,7 @@ function wonder_payments_add_modal_to_settings_page() {
                 localStorage.setItem('wonder_payments_suggestions_hidden', 'true');
 
                 // Note.
-                alert('<?php echo esc_js(__('Suggestions hidden', 'wonder-payments')); ?>');
+                alert('<?php echo esc_js(__('Suggestions hidden', 'wonderpay-gateway-for-woocommerce')); ?>');
             });
 
             

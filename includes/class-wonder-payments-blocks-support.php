@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 
 use Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType;
 
-class WC_Wonder_Payments_Blocks_Support extends AbstractPaymentMethodType {
+class Wonderpay_Gateway_For_Woocommerce_Blocks_Support extends AbstractPaymentMethodType {
     private function log($message, $context = array()) {
         if (!defined('WONDER_PAYMENTS_BLOCKS_LOG_FILE')) {
             return;
@@ -86,10 +86,10 @@ class WC_Wonder_Payments_Blocks_Support extends AbstractPaymentMethodType {
     public function get_payment_method_data() {
         $title = isset($this->settings['title']) && $this->settings['title']
             ? $this->settings['title']
-            : __('Wonder Payments', 'wonder-payments');
+            : __('Wonder Payments', 'wonderpay-gateway-for-woocommerce');
         $description = isset($this->settings['description']) && $this->settings['description']
             ? $this->settings['description']
-            : __('Pay securely via Wonder Payments', 'wonder-payments');
+            : __('Pay securely via Wonder Payments', 'wonderpay-gateway-for-woocommerce');
 
         $data = array(
             'title' => $title,
