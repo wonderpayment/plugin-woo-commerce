@@ -1481,6 +1481,9 @@ class Wonder_Payments_Admin {
                     var html = '';
 
                     businesses.forEach(function(business, index) {
+                        if (business && business.business_type === 'Natural Person') {
+                            return;
+                        }
                         var status = business.status || 'inactive';
                         var statusText = status.toUpperCase();
 
