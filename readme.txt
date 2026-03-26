@@ -1,4 +1,4 @@
-=== WonderPay Gateway for WooCommerce ===
+=== Wonder Payment For Wooemmerce ===
 Contributors: yourname
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
