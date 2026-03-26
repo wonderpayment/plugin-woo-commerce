@@ -3,7 +3,7 @@
 Plugin Name: WonderPay Gateway for WooCommerce
 Plugin URI: http://localhost:8888/wp-admin/about.php
 Description: 7 minutes onboarding, then accepted 34+ payment methods
-Version: 1.0.0
+Version: 1.0.2
 Author: wonder
 License: GPL v2 or later
 Text Domain: wonderpay-gateway-for-woocommerce
