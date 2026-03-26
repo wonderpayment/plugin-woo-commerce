@@ -941,14 +941,16 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
                 return true;
             } else {
                 // Refund failed
-                $error_message = isset($response['message']) ? $response['message'] : 'Unknown error';
-                if (isset($response['error_code'])) {
-                    $error_message .= ' (' . $response['error_code'] . ')';
+                $error_message = 'Unknown error';
+                if (isset($response['message']) && $response['message'] !== '') {
+                    $error_message = $response['message'];
+                } elseif (isset($response['error_message']) && $response['error_message'] !== '') {
+                    $error_message = $response['error_message'];
+                } elseif (isset($response['error']) && $response['error'] !== '') {
+                    $error_message = $response['error'];
                 }
-
-                // Check error code 100701 and show custom error message
-                if (isset($response['code']) && $response['code'] == 100701) {
-                    $error_message = 'Refund failed, duplicate transaction. Refunds of the same amount are not allowed within five minutes.';
+                if (isset($response['error_code']) && $response['error_code'] !== '') {
+                    $error_message .= ' (' . $response['error_code'] . ')';
                 }
 
                 $refund_note = sprintf(

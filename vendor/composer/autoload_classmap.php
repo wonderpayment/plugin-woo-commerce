@@ -8,7 +8,7 @@ $baseDir = dirname($vendorDir);
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'PaymentSDK' => $vendorDir . '/wonderpayment/sdk/src/PaymentSDK.php',
-    'WC_Wonder_Payments_Blocks_Support' => $baseDir . '/includes/class-wonderpay-gateway-for-woocommerce-blocks-support.php',
-    'WC_Wonder_Payments_Gateway' => $baseDir . '/includes/class-wonderpay-gateway-for-woocommerce-gateway.php',
     'Wonder_Payments_Admin' => $baseDir . '/includes/Wonder_Payments_Admin.php',
+    'Wonderpay_Gateway_For_Woocommerce_Blocks_Support' => $baseDir . '/includes/class-wonder-payments-blocks-support.php',
+    'Wonderpay_Gateway_For_Woocommerce_Gateway' => $baseDir . '/includes/class-wonder-payments-gateway.php',
 );

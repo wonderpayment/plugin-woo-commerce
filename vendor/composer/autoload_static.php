@@ -27,9 +27,9 @@ class ComposerStaticInit58b1b39460d5c4a2c95bcf363b4713ed
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'PaymentSDK' => __DIR__ . '/..' . '/wonderpayment/sdk/src/PaymentSDK.php',
-        'WC_Wonder_Payments_Blocks_Support' => __DIR__ . '/../..' . '/includes/class-wonderpay-gateway-for-woocommerce-blocks-support.php',
-        'WC_Wonder_Payments_Gateway' => __DIR__ . '/../..' . '/includes/class-wonder-payments-gateway.php',
         'Wonder_Payments_Admin' => __DIR__ . '/../..' . '/includes/Wonder_Payments_Admin.php',
+        'Wonderpay_Gateway_For_Woocommerce_Blocks_Support' => __DIR__ . '/../..' . '/includes/class-wonder-payments-blocks-support.php',
+        'Wonderpay_Gateway_For_Woocommerce_Gateway' => __DIR__ . '/../..' . '/includes/class-wonder-payments-gateway.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

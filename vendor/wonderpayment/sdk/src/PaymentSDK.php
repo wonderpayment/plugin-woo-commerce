@@ -77,7 +77,7 @@ class PaymentSDK
             $this->qrCodeClientId = '17175e11-d12b-43a1-b00e-ceca79876f45';
             $this->qrCodeAppKey = '9a54ed52-7a2c-4d08-aabc-4e1c548fff02';
             $this->qrCodeAppSlug = '3rTiiv';
-            $this->qrCodeLinkClientId = '17175e11-d12b-43a1-b00e-ceca79876f45';
+            $this->qrCodeLinkClientId = '0fcefe4bfc5c399c313309c40324fde8';
         } else {
             // Test environment configuration
             $this->qrCodeClientId = 'c4a2b6cf-983a-4117-b75f-bbeac3897c0f';
