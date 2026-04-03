@@ -548,9 +548,6 @@ class PaymentSDK
         $publicKeyDetails = openssl_pkey_get_details($res);
         $publicKey = $publicKeyDetails['key'];
 
-        // Release resources
-        openssl_pkey_free($res);
-
         return array(
             'private_key' => $privateKey,
             'public_key' => $publicKey

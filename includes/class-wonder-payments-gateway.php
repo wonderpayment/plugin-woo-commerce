@@ -27,7 +27,7 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
     public function __construct()
     {
         $this->id = 'wonder_payments';
-        $this->icon = 'https://cdn.prod.website-files.com/66a434223af11b56a4762411/673175cb1da46b92a7e535fa_Icon-App-1024x1024.png';
+        $this->icon = plugins_url('images/wonder_payment.png', WONDER_PAYMENTS_PLUGIN_FILE);
         $this->has_fields = false;
         $this->method_title = __('Wonder Payment For WooCommerce', 'wonder-payment-for-woocommerce');
         $this->method_description = __('7 minutes onboarding, then accepted 34+ payment methods', 'wonder-payment-for-woocommerce');
@@ -167,27 +167,25 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         ?>
 
             <!-- Key pair display area -->
-            <div class="wonder-keys-display" style="display: flex; gap: 20px; margin-bottom: 20px;">
-                <div style="flex: 1;">
+            <div class="wonder-keys-display">
+                <div class="wonder-keys-display__column">
                     <h4><?php esc_html_e('Private Key', 'wonder-payment-for-woocommerce'); ?></h4>
                     <p class="description"><?php esc_html_e('Your RSA 4096-bit private key. Keep this secure.', 'wonder-payment-for-woocommerce'); ?></p>
-                    <textarea id="wonder-private-key-display"
-                              style="width: 100%; height: 200px; font-family: monospace; font-size: 11px; margin: 10px 0; padding: 10px; background: #fff;">
+                    <textarea id="wonder-private-key-display" class="wonder-keys-display__textarea">
                             <?php echo esc_textarea($private_key); ?>
                         </textarea>
 
                     <button type="button" class="button button-primary" id="wonder-generate-keys">
                         <?php esc_html_e('Generate RSA Keys', 'wonder-payment-for-woocommerce'); ?>
                     </button>
-                    <span class="spinner" style="float: none; margin: 0 10px;"></span>
-                    <span id="wonder-generate-message" style="margin-left: 10px;"></span>
+                    <span class="spinner wonder-payments-inline-spinner"></span>
+                    <span id="wonder-generate-message" class="wonder-payments-inline-message"></span>
                 </div>
 
-                <div style="flex: 1;">
+                <div class="wonder-keys-display__column">
                     <h4><?php esc_html_e('Public Key', 'wonder-payment-for-woocommerce'); ?></h4>
                     <p class="description"><?php esc_html_e('Copy this public key and upload it to Wonder Portal.', 'wonder-payment-for-woocommerce'); ?></p>
-                    <textarea id="wonder-generated-public-key-display" readonly
-                              style="width: 100%; height: 200px; font-family: monospace; font-size: 11px; margin: 10px 0; padding: 10px; background: #fff;">
+                    <textarea id="wonder-generated-public-key-display" class="wonder-keys-display__textarea" readonly>
                             <?php echo esc_textarea($generated_public_key); ?>
                         </textarea>
                 </div>
@@ -195,7 +193,7 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         </table>
 
         <!-- Continue output of the Webhook Public Key field -->
-        <table class="form-table" style="margin-top: 30px;">
+        <table class="form-table wonder-payments-form-table">
             <?php
             // Note.
             if (isset($this->form_fields['webhook_public_key'])) {
@@ -217,108 +215,9 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             <button type="button" class="button" id="wonder-test-config">
                 <?php esc_html_e('Test Configuration', 'wonder-payment-for-woocommerce'); ?>
             </button>
-            <span class="spinner" style="float: none; margin: 0 10px;"></span>
-            <span id="wonder-action-message" style="margin-left: 10px;"></span>
+            <span class="spinner wonder-payments-inline-spinner"></span>
+            <span id="wonder-action-message" class="wonder-payments-inline-message"></span>
         </div>
-
-        <style>
-            #woocommerce_wonder_payments_webhook_public_key_field .forminp-textarea textarea {
-                width: 100%;
-                max-width: 800px;
-                height: 200px;
-                font-family: monospace;
-                font-size: 11px;
-            }
-
-            #wonder-rsa-keys-section textarea {
-                resize: vertical;
-            }
-
-            .wonder-keys-display {
-                flex-wrap: wrap;
-            }
-
-            @media (max-width: 768px) {
-                .wonder-keys-display {
-                    flex-direction: column;
-                }
-            }
-
-            /* Hide rows for hidden fields */
-            #woocommerce_wonder_payments_private_key_field,
-            #woocommerce_wonder_payments_generated_public_key_field {
-                display: none !important;
-            }
-        </style>
-
-        <script>
-            jQuery(document).ready(function ($) {
-                // Check for saved private key and display it
-                var savedPrivateKey = '<?php echo esc_js($private_key); ?>';
-                var savedGeneratedPublicKey = '<?php echo esc_js($generated_public_key); ?>';
-
-                if (savedPrivateKey) {
-                    $('#wonder-private-key-display').val(savedPrivateKey);
-                }
-
-                if (savedGeneratedPublicKey) {
-                    $('#wonder-generated-public-key-display').val(savedGeneratedPublicKey);
-                }
-
-                // Key pair generation button click event
-                $(document).on('click', '#wonder-generate-keys', function (e) {
-                    e.preventDefault();
-
-                    var $button = $(this);
-                    var $spinner = $(this).siblings('.spinner');
-                    var $message = $('#wonder-generate-message');
-                    var $privateKeyDisplay = $('#wonder-private-key-display');
-                    var $publicKeyDisplay = $('#wonder-generated-public-key-display');
-
-                    // Show loading state
-                    $button.prop('disabled', true);
-                    $spinner.addClass('is-active');
-                    $message.html('').removeClass('success error');
-
-                    $.ajax({
-                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-                        type: 'POST',
-                        data: {
-                            action: 'wonder_generate_keys',
-                            security: '<?php echo esc_attr(wp_create_nonce('wonder_generate_keys')); ?>'
-                        },
-                        success: function (response) {
-                            console.log('Generate keys response:', response);
-                            if (response.success) {
-                                // Show success message
-                                $message.html('<span style="color: green;">✅ ' + response.data.message + '</span>').addClass('success');
-
-                                // Fill private and public keys in the display area
-                                $privateKeyDisplay.val(response.data.private_key);
-                                $publicKeyDisplay.val(response.data.public_key);
-
-                                // Update hidden form fields
-                                $('input[name="woocommerce_wonder_payments_private_key"]').val(response.data.private_key);
-                                $('input[name="woocommerce_wonder_payments_generated_public_key"]').val(response.data.public_key);
-                            } else {
-                                // Show error message
-                                $message.html('<span style="color: red;">❌ ' + response.data.message + '</span>').addClass('error');
-                            }
-                        },
-                        error: function (xhr, status, error) {
-                            console.error('Generate keys error:', error);
-                            $message.html('<span style="color: red;">❌ <?php echo esc_js(__('Error:', 'wonder-payment-for-woocommerce')); ?> ' + error + '</span>').addClass('error');
-                        },
-                        complete: function () {
-                            // Restore button state
-                            $button.prop('disabled', false);
-                            $spinner.removeClass('is-active');
-                        }
-                    });
-                });
-
-            });
-        </script>
         <?php
     }
 
@@ -486,11 +385,11 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         $status = $this->get_custom_status();
         
         return sprintf(
-            '<span class="wonder-payment-status" style="display:inline-flex;align-items:center;gap:4px;color:%s;font-size:12px;font-weight:500;">
-                <span class="dashicons %s" style="font-size:16px;"></span>
+            '<span class="wonder-payment-status wonder-payment-status--%1$s">
+                <span class="dashicons %2$s wonder-payment-status__icon"></span>
                 <strong>%s</strong>
             </span>',
-            esc_attr($status['color']),
+            esc_attr($status['status']),
             esc_attr($status['icon']),
             esc_html($status['text'])
         );
@@ -574,7 +473,6 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
                     'message' => __('Invalid private key format. Please reconfigure your payment gateway.', 'wonder-payment-for-woocommerce')
                 );
             }
-            openssl_pkey_free($privateKeyId);
 
             // Initialize SDK
             $webhook_key = !empty($this->webhook_public_key) ? $this->webhook_public_key : null;
@@ -973,8 +871,15 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         $logger = $this->get_logger();
         $logger->debug('Webhook entry: request received', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
 
-        // Note.
         $raw_data = file_get_contents('php://input');
+        if (!is_string($raw_data)) {
+            $raw_data = '';
+        }
+        if (strlen($raw_data) > 200000) {
+            $logger->error('Webhook rejected: payload too large', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
+            wp_die('Webhook payload too large', 'Wonder Payments', array('response' => 413));
+        }
+
         $data = json_decode($raw_data, true);
 
         $logger->debug('Webhook raw request', array(
@@ -984,10 +889,9 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             'raw_length' => strlen($raw_data)
         ));
 
-        if (!$data) {
+        if (!is_array($data)) {
             $logger->error('Webhook parse failed: invalid JSON', array(
-                'source' => 'wonderpay-gateway-for-woocommerce',
-                'raw' => $raw_data
+                'source' => 'wonderpay-gateway-for-woocommerce'
             ));
             wp_die('Invalid webhook data', 'Wonder Payments', array('response' => 400));
         }
@@ -997,13 +901,9 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             'keys' => array_keys($data)
         ));
 
-        // Verify signature
-        // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - HTTP headers should not be sanitized as they are used for webhook verification
-        $signature = isset($_SERVER['HTTP_SIGNATURE']) ? wp_unslash($_SERVER['HTTP_SIGNATURE']) : '';
-        // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - HTTP headers should not be sanitized as they are used for webhook verification
-        $credential = isset($_SERVER['HTTP_CREDENTIAL']) ? wp_unslash($_SERVER['HTTP_CREDENTIAL']) : '';
-        // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - HTTP headers should not be sanitized as they are used for webhook verification
-        $nonce = isset($_SERVER['HTTP_NONCE']) ? wp_unslash($_SERVER['HTTP_NONCE']) : '';
+        $signature = isset($_SERVER['HTTP_SIGNATURE']) ? wonder_payments_sanitize_token_value($_SERVER['HTTP_SIGNATURE'], '/[^A-Za-z0-9+\/=]/') : '';
+        $credential = isset($_SERVER['HTTP_CREDENTIAL']) ? wonder_payments_sanitize_token_value($_SERVER['HTTP_CREDENTIAL']) : '';
+        $nonce = isset($_SERVER['HTTP_NONCE']) ? wonder_payments_sanitize_token_value($_SERVER['HTTP_NONCE']) : '';
 
         $is_valid = false;
 
@@ -1045,13 +945,15 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         $verify_start = microtime(true);
         try {
             $body = $raw_data ? $raw_data : '';
-            $uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) : '';
+            $uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
+            $uri = is_string($uri) ? preg_replace('/[\x00-\x1F\x7F]/', '', $uri) : '';
             $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : 'POST';
 
             $signature_message = $sdk->generateSignatureMessage($credential, $nonce, $method, $uri, $body);
             $public_key = $normalized_webhook_key ? openssl_pkey_get_public($normalized_webhook_key) : false;
             if ($public_key) {
-                $verify_result = openssl_verify($signature_message, base64_decode($signature), $public_key, OPENSSL_ALGO_SHA256);
+                $decoded_signature = base64_decode($signature, true);
+                $verify_result = $decoded_signature ? openssl_verify($signature_message, $decoded_signature, $public_key, OPENSSL_ALGO_SHA256) : 0;
                 $is_valid = ($verify_result === 1);
             } else {
                 $logger->error('Webhook verify failed: invalid public key', array(
@@ -1148,11 +1050,21 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             wp_die('Order not found', 'Wonder Payments', array('response' => 404));
         }
 
-        // @codingStandardsIgnoreLine WordPress.Security.ValidatedSanitizedInput.InputNotSanitized - HTTP headers should not be sanitized as they are used for webhook verification
-        $action = isset($_SERVER['HTTP_X_ACTION']) ? strtolower(wp_unslash($_SERVER['HTTP_X_ACTION'])) : '';
+        $allowed_actions = array(
+            'order.paid',
+            'order.refunded',
+            'order.payment_failure',
+            'order.voided',
+            'transaction.voided',
+            'order.created',
+        );
+        $action = isset($_SERVER['HTTP_X_ACTION']) ? strtolower(wonder_payments_sanitize_token_value($_SERVER['HTTP_X_ACTION'], '/[^A-Za-z0-9_\\-:\\.]/')) : '';
+        if (!in_array($action, $allowed_actions, true)) {
+            $action = '';
+        }
 
-        $state = isset($payload['state']) ? strtolower($payload['state']) : '';
-        $correspondence_state = isset($payload['correspondence_state']) ? strtolower($payload['correspondence_state']) : '';
+        $state = isset($payload['state']) ? sanitize_key(strtolower((string) $payload['state'])) : '';
+        $correspondence_state = isset($payload['correspondence_state']) ? sanitize_key(strtolower((string) $payload['correspondence_state'])) : '';
 
         $logger->debug('Webhook status fields', array(
             'source' => 'wonderpay-gateway-for-woocommerce',
@@ -1163,18 +1075,18 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         ));
         // Persist key fields
         if (!empty($payload['number'])) {
-            update_post_meta($order_id, '_wonder_order_number', $payload['number']);
+            update_post_meta($order_id, '_wonder_order_number', sanitize_text_field((string) $payload['number']));
         }
         update_post_meta($order_id, '_wonder_state', $state);
         update_post_meta($order_id, '_wonder_correspondence_state', $correspondence_state);
         if (isset($payload['paid_total'])) {
-            update_post_meta($order_id, '_wonder_paid_total', $payload['paid_total']);
+            update_post_meta($order_id, '_wonder_paid_total', (float) $payload['paid_total']);
         }
 
         if (isset($payload['transactions']) && is_array($payload['transactions'])) {
             foreach ($payload['transactions'] as $transaction) {
                 if (!empty($transaction['uuid'])) {
-                    update_post_meta($order_id, '_wonder_transaction_id', $transaction['uuid']);
+                    update_post_meta($order_id, '_wonder_transaction_id', sanitize_text_field((string) $transaction['uuid']));
                     break;
                 }
             }
@@ -1276,9 +1188,7 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         }
 
         // Return success response
-        status_header(200);
-        echo json_encode(array('status' => 'ok'));
-        exit;
+        wp_send_json(array('status' => 'ok'), 200);
     }
 
     /**
@@ -1406,53 +1316,12 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         $order_id = $order->get_id();
         $nonce = wp_create_nonce('wonder_sync_order_status_' . $order_id);
         ?>
-        <div style="margin: 15px 0; clear: both;">
-            <button type="button" class="button button-secondary" id="wonder-sync-status-btn" data-order-id="<?php echo esc_attr($order_id); ?>" data-nonce="<?php echo esc_attr($nonce); ?>" style="margin-top: 15px;">
-                <span class="dashicons dashicons-update" style="vertical-align: middle; margin-right: 5px;"></span>Sync Wonder Payments Status
+        <div class="wonder-sync-status-wrap">
+            <button type="button" class="button button-secondary wonder-sync-status-btn" id="wonder-sync-status-btn" data-order-id="<?php echo esc_attr($order_id); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
+                <span class="dashicons dashicons-update wonder-sync-status-btn__icon"></span><?php esc_html_e('Sync Wonder Payments Status', 'wonder-payment-for-woocommerce'); ?>
             </button>
-            <span id="wonder-sync-status-message" style="margin-left: 10px; font-size: 12px;"></span>
+            <span id="wonder-sync-status-message" class="wonder-sync-status-message"></span>
         </div>
-        <script type="text/javascript">
-            jQuery(document).ready(function($) {
-                $('#wonder-sync-status-btn').on('click', function() {
-                    var $btn = $(this);
-                    var orderId = $btn.data('order-id');
-                    var nonce = $btn.data('nonce');
-                    var $message = $('#wonder-sync-status-message');
-
-                    $btn.prop('disabled', true);
-                    $message.text('Syncing...');
-
-                    $.ajax({
-                        url: ajaxurl,
-                        type: 'POST',
-                        data: {
-                            action: 'wonder_sync_order_status',
-                            order_id: orderId,
-                            security: nonce
-                        },
-                        success: function(response) {
-                            console.log('Wonder Payments Sync response:', response);
-                            if (response.success) {
-                                $message.text('Sync successful!').css('color', 'green');
-                                console.log('Wonder Payments Preparing to reload page...');
-                                setTimeout(function() {
-                                    console.log('Wonder Payments Reloading...');
-                                    location.reload();
-                                }, 1500);
-                            } else {
-                                $message.text('Sync failed: ' + (response.data || 'Unknown error')).css('color', 'red');
-                                $btn.prop('disabled', false);
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            $message.text('Sync failed: ' + error).css('color', 'red');
-                            $btn.prop('disabled', false);
-                        }
-                    });
-                });
-            });
-        </script>
         <?php
     }
 
