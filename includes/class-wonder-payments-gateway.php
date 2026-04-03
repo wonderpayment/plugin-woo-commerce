@@ -901,9 +901,12 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             'keys' => array_keys($data)
         ));
 
-        $signature = isset($_SERVER['HTTP_SIGNATURE']) ? wonder_payments_sanitize_token_value($_SERVER['HTTP_SIGNATURE'], '/[^A-Za-z0-9+\/=]/') : '';
-        $credential = isset($_SERVER['HTTP_CREDENTIAL']) ? wonder_payments_sanitize_token_value($_SERVER['HTTP_CREDENTIAL']) : '';
-        $nonce = isset($_SERVER['HTTP_NONCE']) ? wonder_payments_sanitize_token_value($_SERVER['HTTP_NONCE']) : '';
+        $signature_header = isset($_SERVER['HTTP_SIGNATURE']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_SIGNATURE'])) : '';
+        $credential_header = isset($_SERVER['HTTP_CREDENTIAL']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_CREDENTIAL'])) : '';
+        $nonce_header = isset($_SERVER['HTTP_NONCE']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_NONCE'])) : '';
+        $signature = wonder_payments_sanitize_token_value($signature_header, '/[^A-Za-z0-9+\/=]/');
+        $credential = wonder_payments_sanitize_token_value($credential_header);
+        $nonce = wonder_payments_sanitize_token_value($nonce_header);
 
         $is_valid = false;
 
@@ -945,8 +948,9 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         $verify_start = microtime(true);
         try {
             $body = $raw_data ? $raw_data : '';
-            $uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
-            $uri = is_string($uri) ? preg_replace('/[\x00-\x1F\x7F]/', '', $uri) : '';
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Raw request URI is required for signature verification and is normalized before use.
+            $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
+            $uri = is_string($request_uri) ? preg_replace('/[\x00-\x1F\x7F]/', '', $request_uri) : '';
             $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : 'POST';
 
             $signature_message = $sdk->generateSignatureMessage($credential, $nonce, $method, $uri, $body);
@@ -1058,7 +1062,8 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             'transaction.voided',
             'order.created',
         );
-        $action = isset($_SERVER['HTTP_X_ACTION']) ? strtolower(wonder_payments_sanitize_token_value($_SERVER['HTTP_X_ACTION'], '/[^A-Za-z0-9_\\-:\\.]/')) : '';
+        $action_header = isset($_SERVER['HTTP_X_ACTION']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_X_ACTION'])) : '';
+        $action = strtolower(wonder_payments_sanitize_token_value($action_header, '/[^A-Za-z0-9_\\-:\\.]/'));
         if (!in_array($action, $allowed_actions, true)) {
             $action = '';
         }

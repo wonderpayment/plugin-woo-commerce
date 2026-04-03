@@ -62,6 +62,8 @@ function wonder_payments_get_debug_log_file() {
  */
 function wonder_payments_sanitize_multiline_secret($value) {
     $value = is_scalar($value) ? (string) $value : '';
+    $value = wp_unslash($value);
+    $value = sanitize_textarea_field($value);
     $value = str_replace("\0", '', $value);
     $value = preg_replace("/\r\n?/", "\n", $value);
     return trim($value);
@@ -642,8 +644,10 @@ function wonder_ajax_test_config()
     // Note.
     $app_id = isset($_POST['app_id']) ? sanitize_text_field(wp_unslash($_POST['app_id'])) : '';
     // Note.
-    $private_key = isset($_POST['private_key']) ? wonder_payments_sanitize_multiline_secret(wp_unslash($_POST['private_key'])) : '';
-    $webhook_key = isset($_POST['webhook_key']) ? wonder_payments_sanitize_multiline_secret(wp_unslash($_POST['webhook_key'])) : '';
+    $private_key_input = isset($_POST['private_key']) ? sanitize_textarea_field(wp_unslash($_POST['private_key'])) : '';
+    $webhook_key_input = isset($_POST['webhook_key']) ? sanitize_textarea_field(wp_unslash($_POST['webhook_key'])) : '';
+    $private_key = wonder_payments_sanitize_multiline_secret($private_key_input);
+    $webhook_key = wonder_payments_sanitize_multiline_secret($webhook_key_input);
     $environment = isset($_POST['environment']) ? sanitize_text_field(wp_unslash($_POST['environment'])) : 'yes';
 
     $result = wonder_test_api_connection($app_id, $private_key, $webhook_key, $environment);
