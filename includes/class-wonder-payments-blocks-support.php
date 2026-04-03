@@ -86,10 +86,10 @@ class Wonderpay_Gateway_For_Woocommerce_Blocks_Support extends AbstractPaymentMe
     public function get_payment_method_data() {
         $title = isset($this->settings['title']) && $this->settings['title']
             ? $this->settings['title']
-            : __('Wonder Payments', 'wonderpay-gateway-for-woocommerce');
+            : __('Wonder Payments', 'wonder-payment-for-woocommerce');
         $description = isset($this->settings['description']) && $this->settings['description']
             ? $this->settings['description']
-            : __('Pay securely via Wonder Payments', 'wonderpay-gateway-for-woocommerce');
+            : __('Pay securely via Wonder Payments', 'wonder-payment-for-woocommerce');
 
         $data = array(
             'title' => $title,

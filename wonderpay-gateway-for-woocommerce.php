@@ -1,12 +1,12 @@
 <?php
 /*
-Plugin Name: Wonder Payment For Wooemmerce
-Plugin URI: http://localhost:8888/wp-admin/about.php
+Plugin Name: Wonder Payment For WooCommerce
+Plugin URI: https://wonderpayment.com/
 Description: 7 minutes onboarding, then accepted 34+ payment methods
 Version: 1.0.2
 Author: wonder
 License: GPL v2 or later
-Text Domain: wonderpay-gateway-for-woocommerce
+Text Domain: wonder-payment-for-woocommerce
 */
 
 // Note.
@@ -93,7 +93,7 @@ function wonder_payments_init_gateway()
 function wonder_payments_add_modal_link($link, $gateway_id) {
     if ($gateway_id === 'wonder_payments') {
         // Note.
-        $link = '<a href="#" class="wonder-payments-manage-link" data-gateway-id="wonder-payments">' . esc_html__('Manage', 'wonderpay-gateway-for-woocommerce') . '</a>';
+        $link = '<a href="#" class="wonder-payments-manage-link" data-gateway-id="wonder-payments">' . esc_html__('Manage', 'wonder-payment-for-woocommerce') . '</a>';
     }
     return $link;
 }
@@ -122,9 +122,9 @@ function wonder_payments_plugin_action_links($actions, $plugin_file, $plugin_dat
     // Note.
     if (strpos($plugin_file, 'wonderpay-gateway-for-woocommerce.php') !== false && $context === 'active') {
         // Note.
-        $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonderpay-gateway-for-woocommerce') . '</a>';
-        $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonderpay-gateway-for-woocommerce') . '</a>';
-        $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonderpay-gateway-for-woocommerce') . '</a>';
+        $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonder-payment-for-woocommerce') . '</a>';
+        $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonder-payment-for-woocommerce') . '</a>';
+        $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonder-payment-for-woocommerce') . '</a>';
     }
 
     return $actions;
@@ -135,10 +135,10 @@ function wonder_payments_plugin_action_links($actions, $plugin_file, $plugin_dat
  */
 function wonder_payments_gateway_menu_links($actions, $plugin_file, $plugin_data, $context) {
     // Note.
-    $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonderpay-gateway-for-woocommerce') . '</a>';
-    $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonderpay-gateway-for-woocommerce') . '</a>';
-    $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonderpay-gateway-for-woocommerce') . '</a>';
-    $actions['hide_suggestions'] = '<a href="#" class="wonder-payments-hide-suggestions" data-nonce="' . wp_create_nonce('wonder_payments_hide_suggestions') . '">' . esc_html__('Hide suggestions', 'wonderpay-gateway-for-woocommerce') . '</a>';
+    $actions['pricing'] = '<a href="https://wonderpayment.com/pricing" target="_blank">' . esc_html__('View pricing and fees', 'wonder-payment-for-woocommerce') . '</a>';
+    $actions['docs'] = '<a href="https://docs.wonderpayment.com" target="_blank">' . esc_html__('Learn more', 'wonder-payment-for-woocommerce') . '</a>';
+    $actions['terms'] = '<a href="https://wonderpayment.com/terms" target="_blank">' . esc_html__('View terms of service', 'wonder-payment-for-woocommerce') . '</a>';
+    $actions['hide_suggestions'] = '<a href="#" class="wonder-payments-hide-suggestions" data-nonce="' . wp_create_nonce('wonder_payments_hide_suggestions') . '">' . esc_html__('Hide suggestions', 'wonder-payment-for-woocommerce') . '</a>';
 
     return $actions;
 }
@@ -381,7 +381,7 @@ function wonder_payments_add_status_column($columns) {
         
         // Note.
         if ($key === 'status') {
-            $new_columns['wonder_status'] = __('Configuration status', 'wonderpay-gateway-for-woocommerce');
+            $new_columns['wonder_status'] = __('Configuration status', 'wonder-payment-for-woocommerce');
         }
     }
     return $new_columns;
@@ -401,7 +401,7 @@ function wonder_payments_render_status_column($gateway) {
     if (method_exists($gateway, 'get_admin_status_html')) {
         echo wp_kses_post($gateway->get_admin_status_html());
     } else {
-        echo esc_html__('Unknown', 'wonderpay-gateway-for-woocommerce');
+        echo esc_html__('Unknown', 'wonder-payment-for-woocommerce');
     }
 }
 
@@ -435,7 +435,7 @@ function wonder_payments_wc_notice()
 {
     echo '<div class="error"><p>';
     /* translators: Admin notice when WooCommerce is not installed or activated */
-    echo esc_html__('Wonder Payments requires WooCommerce to be installed and activated.', 'wonderpay-gateway-for-woocommerce');
+    echo esc_html__('Wonder Payments requires WooCommerce to be installed and activated.', 'wonder-payment-for-woocommerce');
     echo '</p></div>';
 }
 
@@ -635,14 +635,14 @@ function wonder_payments_check_expired_orders()
             // Note.
             $order->update_status('cancelled', sprintf(
                 /* translators: %s: number of days */
-                __('Order cancelled automatically due to payment expiry (%s days)', 'wonderpay-gateway-for-woocommerce'),
+                __('Order cancelled automatically due to payment expiry (%s days)', 'wonder-payment-for-woocommerce'),
                 $due_days
             ));
 
             // Note.
             $order->add_order_note(sprintf(
                 /* translators: %1$s: order creation date, %2$s: due days */
-                __('Order created on %1$s and cancelled after %2$s days due to payment expiry.', 'wonderpay-gateway-for-woocommerce'),
+                __('Order created on %1$s and cancelled after %2$s days due to payment expiry.', 'wonder-payment-for-woocommerce'),
                 $order_date->date_i18n('Y-m-d H:i:s'),
                 $due_days
             ));
@@ -828,7 +828,7 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
             $business_id = isset($result['business']['id']) ? $result['business']['id'] : 'Unknown';
 
             /* translators: %1$s: business name, %2$s: business ID */
-            $message = sprintf(__('Successful connect to business: %1$s (%2$s)', 'wonderpay-gateway-for-woocommerce'), $business_name, $business_id);
+            $message = sprintf(__('Successful connect to business: %1$s (%2$s)', 'wonder-payment-for-woocommerce'), $business_name, $business_id);
 
             return array(
                 'success' => true,
@@ -1094,31 +1094,31 @@ function wonder_payments_admin_scripts($hook)
             /* translators: Label for the public key field */
 
 
-            'public_key_label' => __('Public Key (upload to Wonder Portal):', 'wonderpay-gateway-for-woocommerce'),
+            'public_key_label' => __('Public Key (upload to Wonder Portal):', 'wonder-payment-for-woocommerce'),
 
 
             /* translators: Important notice label */
 
 
-            'important' => __('Important:', 'wonderpay-gateway-for-woocommerce'),
+            'important' => __('Important:', 'wonder-payment-for-woocommerce'),
 
 
             /* translators: Instruction to save private key */
 
 
-            'save_changes' => __('Please click "Save changes" to save the private key.', 'wonderpay-gateway-for-woocommerce'),
+            'save_changes' => __('Please click "Save changes" to save the private key.', 'wonder-payment-for-woocommerce'),
 
 
             /* translators: Instruction to enter App ID and Private Key */
 
 
-            'enter_fields' => __('Please enter App ID and Private Key first.', 'wonderpay-gateway-for-woocommerce'),
+            'enter_fields' => __('Please enter App ID and Private Key first.', 'wonder-payment-for-woocommerce'),
 
 
             /* translators: Error message label */
 
 
-            'error' => __('Error:', 'wonderpay-gateway-for-woocommerce')
+            'error' => __('Error:', 'wonder-payment-for-woocommerce')
 
 
         )
@@ -2286,7 +2286,7 @@ function wonder_payments_add_modal_to_settings_page() {
                 <!-- Note. -->
                 <div class="wonder-loading">
                     <span class="spinner is-active"></span>
-                    <?php esc_html_e('Loading...', 'wonderpay-gateway-for-woocommerce'); ?>
+                    <?php esc_html_e('Loading...', 'wonder-payment-for-woocommerce'); ?>
                 </div>
             </div>
         </div>
@@ -2494,11 +2494,11 @@ function wonder_payments_add_modal_to_settings_page() {
                         if (response.success) {
                             $('#wonder-modal-body').html(response.data.content);
                         } else {
-                            $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonderpay-gateway-for-woocommerce')); ?></p>');
+                            $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonder-payment-for-woocommerce')); ?></p>');
                         }
                     },
                     error: function () {
-                        $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonderpay-gateway-for-woocommerce')); ?></p>');
+                        $('#wonder-modal-body').html('<p class="error"><?php echo esc_js(__('Failed to load content', 'wonder-payment-for-woocommerce')); ?></p>');
                     }
                 });
             }
@@ -2631,7 +2631,7 @@ function wonder_payments_add_modal_to_settings_page() {
                 localStorage.setItem('wonder_payments_suggestions_hidden', 'true');
 
                 // Note.
-                alert('<?php echo esc_js(__('Suggestions hidden', 'wonderpay-gateway-for-woocommerce')); ?>');
+                alert('<?php echo esc_js(__('Suggestions hidden', 'wonder-payment-for-woocommerce')); ?>');
             });
 
             // Note.
@@ -2650,7 +2650,7 @@ function wonder_payments_add_modal_to_settings_page() {
                 localStorage.setItem('wonder_payments_suggestions_hidden', 'true');
 
                 // Note.
-                alert('<?php echo esc_js(__('Suggestions hidden', 'wonderpay-gateway-for-woocommerce')); ?>');
+                alert('<?php echo esc_js(__('Suggestions hidden', 'wonder-payment-for-woocommerce')); ?>');
             });
 
             

@@ -1,4 +1,4 @@
-=== Wonder Payment For Wooemmerce ===
+=== Wonder Payment For WooCommerce ===
 Contributors: yourname
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
@@ -16,7 +16,7 @@ WonderPay Gateway for WooCommerce is a payment gateway plugin that allows you to
 
 == Installation ==
 
-1. Upload the plugin files to the `/wp-content/plugins/wonder-payments` directory
+1. Upload the plugin files to the `/wp-content/plugins/wonder-payment-for-woocommerce` directory
 2. Activate the plugin through the 'Plugins' menu in WordPress
 3. Go to WooCommerce > Settings > Payments
 4. Find "Wonder Payments" and click "Manage"

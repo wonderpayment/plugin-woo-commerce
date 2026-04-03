@@ -2125,7 +2125,7 @@ class Wonder_Payments_Admin {
     private function generate_qrcode() {
         // Do not generate placeholder; wait for JavaScript to create the QR code
         echo '<div class="qrcode-image" style="margin-left: -10px;">';
-        echo '<img src="" alt="' . esc_attr__('Loading QR code...', 'wonderpay-gateway-for-woocommerce') . '" style="display: none;">';
+        echo '<img src="" alt="' . esc_attr__('Loading QR code...', 'wonder-payment-for-woocommerce') . '" style="display: none;">';
         echo '<div class="qr-loading">Loading QR code...</div>';
         echo '</div>';
     }
@@ -2157,9 +2157,9 @@ class Wonder_Payments_Admin {
                 'ajax_url' => esc_url(admin_url('admin-ajax.php')),
                 'nonce' => esc_attr(wp_create_nonce('wonder_payments_nonce')),
                 'strings' => array(
-                        'confirm_disconnect' => __('Are you sure you want to disconnect?', 'wonderpay-gateway-for-woocommerce'),
-                        'disconnecting' => __('Disconnecting...', 'wonderpay-gateway-for-woocommerce'),
-                        'error' => __('An error occurred. Please try again.', 'wonderpay-gateway-for-woocommerce')
+                        'confirm_disconnect' => __('Are you sure you want to disconnect?', 'wonder-payment-for-woocommerce'),
+                        'disconnecting' => __('Disconnecting...', 'wonder-payment-for-woocommerce'),
+                        'error' => __('An error occurred. Please try again.', 'wonder-payment-for-woocommerce')
                 )
         ));
     }
