@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonderpayment.com/
 Description: 7 minutes onboarding, then accepted 34+ payment methods
-Version: 1.0.2
+Version: 1.0.3
 Author: wonder
 License: GPL v2 or later
 Text Domain: wonder-payment-for-woocommerce

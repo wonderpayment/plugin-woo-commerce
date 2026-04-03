@@ -69,7 +69,7 @@ class Wonderpay_Gateway_For_Woocommerce_Blocks_Support extends AbstractPaymentMe
             $handle,
             plugins_url('assets/js/wonder-payments-blocks.js', WONDER_PAYMENTS_PLUGIN_FILE),
             array('wc-blocks-registry', 'wc-settings', 'wp-element', 'wp-html-entities'),
-            '1.0.0',
+            '1.0.3',
             true
         );
 

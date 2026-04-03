@@ -2140,7 +2140,7 @@ class Wonder_Payments_Admin {
                 'wonder-payments-admin',
                 plugin_dir_url(__FILE__) . 'assets/css/admin.css',
                 array(),
-                '1.0.0'
+                '1.0.3'
         );
 
         // Load scripts
@@ -2148,7 +2148,7 @@ class Wonder_Payments_Admin {
                 'wonder-payments-admin',
                 plugin_dir_url(__FILE__) . 'assets/js/wonder_payments_admin.js',
                 array('jquery'),
-                '1.0.0',
+                '1.0.3',
                 true
         );
 

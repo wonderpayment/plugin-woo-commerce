@@ -3,7 +3,7 @@ Contributors: yourname
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -23,6 +23,9 @@ WonderPay Gateway for WooCommerce is a payment gateway plugin that allows you to
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.3 =
+* Fix WordPress text domain alignment for plugin review checks
 
 = 1.0.2 =
 * Initial release
