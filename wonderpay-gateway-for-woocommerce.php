@@ -372,7 +372,7 @@ function wonder_payments_add_status_column($columns) {
         
         // Note.
         if ($key === 'status') {
-            $new_columns['wonder_status'] = __('Configuration status', 'wonder-payment-for-woocommerce');
+            $new_columns['wonder_status'] = esc_html__('Configuration status', 'wonder-payment-for-woocommerce');
         }
     }
     return $new_columns;

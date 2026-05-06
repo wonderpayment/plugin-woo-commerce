@@ -945,8 +945,8 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             'nonce' => $nonce ? 'set' : 'empty'
         ));
 
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Value is validated by wonder_payments_normalize_request_uri().
-        $uri = wonder_payments_normalize_request_uri(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '');
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) : '';
+        $uri = wonder_payments_normalize_request_uri($request_uri);
         if ($uri === '') {
             $logger->error('Webhook rejected: invalid request URI', array(
                 'source' => 'wonderpay-gateway-for-woocommerce'
