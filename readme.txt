@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -62,6 +62,9 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.4 =
+* Review fixes and packaging cleanup
 
 = 1.0.3 =
 * Fix WordPress text domain alignment for plugin review checks
