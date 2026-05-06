@@ -945,14 +945,27 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             'nonce' => $nonce ? 'set' : 'empty'
         ));
 
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Value is validated by wonder_payments_normalize_request_uri().
+        $uri = wonder_payments_normalize_request_uri(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '');
+        if ($uri === '') {
+            $logger->error('Webhook rejected: invalid request URI', array(
+                'source' => 'wonderpay-gateway-for-woocommerce'
+            ));
+            wp_die('Invalid request URI', 'Wonder Payments', array('response' => 400));
+        }
+
+        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper(sanitize_key(wp_unslash($_SERVER['REQUEST_METHOD']))) : '';
+        if ($method !== 'POST') {
+            $logger->error('Webhook rejected: invalid request method', array(
+                'source' => 'wonderpay-gateway-for-woocommerce',
+                'method' => $method
+            ));
+            wp_die('Invalid request method', 'Wonder Payments', array('response' => 405));
+        }
+
         $verify_start = microtime(true);
         try {
             $body = $raw_data ? $raw_data : '';
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Raw request URI is required for signature verification and is normalized before use.
-            $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_unslash($_SERVER['REQUEST_URI']) : '';
-            $uri = is_string($request_uri) ? preg_replace('/[\x00-\x1F\x7F]/', '', $request_uri) : '';
-            $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : 'POST';
-
             $signature_message = $sdk->generateSignatureMessage($credential, $nonce, $method, $uri, $body);
             $public_key = $normalized_webhook_key ? openssl_pkey_get_public($normalized_webhook_key) : false;
             if ($public_key) {

@@ -1,19 +1,5 @@
 {
   "name": "wonder-payment/wonder-payment-for-woocommerce",
   "description": "Wonder Payments WooCommerce Plugin",
-  "type": "wordpress-plugin",
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/wonderpayment/payment-sdk-php.git"
-    }
-  ],
-  "require": {
-    "wonderpayment/sdk": "dev-main"
-  },
-  "autoload": {
-    "classmap": [
-      "includes/"
-    ]
-  }
+  "type": "wordpress-plugin"
 }

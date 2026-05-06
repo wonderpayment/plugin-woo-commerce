@@ -55,6 +55,31 @@ function wonder_payments_get_debug_log_file() {
 }
 
 /**
+ * Write plugin-managed files through the WordPress filesystem API.
+ *
+ * @param string $file_path Absolute file path.
+ * @param string $contents  File contents.
+ * @return bool
+ */
+function wonder_payments_write_file($file_path, $contents) {
+    if (!function_exists('WP_Filesystem')) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
+
+    global $wp_filesystem;
+
+    if (!($wp_filesystem instanceof WP_Filesystem_Base) && !WP_Filesystem()) {
+        return false;
+    }
+
+    if (!($wp_filesystem instanceof WP_Filesystem_Base)) {
+        return false;
+    }
+
+    return (bool) $wp_filesystem->put_contents($file_path, $contents, FS_CHMOD_FILE);
+}
+
+/**
  * Sanitize PEM-like secrets while preserving line breaks.
  *
  * @param mixed $value Raw secret value.
@@ -81,6 +106,48 @@ function wonder_payments_sanitize_token_value($value, $pattern = '/[^A-Za-z0-9_\
     $value = wp_unslash($value);
     $value = sanitize_text_field($value);
     return (string) preg_replace($pattern, '', $value);
+}
+
+/**
+ * Normalize a request URI before using it for signature verification.
+ *
+ * The Wonder webhook signature is calculated from the request target, so this
+ * keeps the original path/query shape while rejecting malformed input.
+ *
+ * @param mixed $value Raw request URI.
+ * @return string
+ */
+function wonder_payments_normalize_request_uri($value) {
+    if (!is_scalar($value)) {
+        return '';
+    }
+
+    $value = wp_unslash((string) $value);
+
+    if ($value === '' || strlen($value) > 2048) {
+        return '';
+    }
+
+    if (
+        $value[0] !== '/' ||
+        strpos($value, '://') !== false ||
+        preg_match('/[\x00-\x1F\x7F\s\\\\#]/', $value) ||
+        !preg_match('#^/[A-Za-z0-9\-._~/%?=&]*$#', $value)
+    ) {
+        return '';
+    }
+
+    $parts = wp_parse_url('https://example.invalid' . $value);
+    if ($parts === false || empty($parts['path'])) {
+        return '';
+    }
+
+    $normalized = $parts['path'];
+    if (isset($parts['query']) && $parts['query'] !== '') {
+        $normalized .= '?' . $parts['query'];
+    }
+
+    return $normalized;
 }
 
 /**
@@ -163,13 +230,8 @@ function wonder_payments_enqueue_admin_assets(array $data = array()) {
 }
 
 // Note.
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
-} else {
-    // Note.
-    if (file_exists(__DIR__ . '/vendor/wonderpayment/sdk/src/PaymentSDK.php')) {
-        require_once __DIR__ . '/vendor/wonderpayment/sdk/src/PaymentSDK.php';
-    }
+if (file_exists(__DIR__ . '/vendor/wonderpayment/sdk/src/PaymentSDK.php')) {
+    require_once __DIR__ . '/vendor/wonderpayment/sdk/src/PaymentSDK.php';
 }
 
 // Note.
@@ -502,10 +564,10 @@ function wonder_payments_clean_debug_log()
         // Note.
         if ($keep_from > 0) {
             $keep_lines = array_slice($lines, $keep_from);
-            file_put_contents($log_file, implode('', $keep_lines));
+            wonder_payments_write_file($log_file, implode('', $keep_lines));
         } else {
             // Note.
-            file_put_contents($log_file, '');
+            wonder_payments_write_file($log_file, '');
         }
     } catch (Exception $e) {
     }
