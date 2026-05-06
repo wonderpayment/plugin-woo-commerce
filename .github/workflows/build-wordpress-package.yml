@@ -15,6 +15,7 @@ jobs:
 
     env:
       PLUGIN_SLUG: wonder-payment-for-woocommerce
+      PACKAGE_BASENAME: plugin-woo-commerce
       MAIN_PLUGIN_FILE: wonderpay-gateway-for-woocommerce.php
 
     steps:
@@ -68,11 +69,11 @@ jobs:
       - name: Create zip archive
         run: |
           cd dist
-          zip -r "${PLUGIN_SLUG}-${{ steps.version.outputs.version }}.zip" "${PLUGIN_SLUG}"
+          zip -r "${PACKAGE_BASENAME}-${{ steps.version.outputs.version }}.zip" "${PLUGIN_SLUG}"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
           name: wordpress-plugin-${{ steps.version.outputs.version }}
-          path: dist/${{ env.PLUGIN_SLUG }}-${{ steps.version.outputs.version }}.zip
+          path: dist/${{ env.PACKAGE_BASENAME }}-${{ steps.version.outputs.version }}.zip
           if-no-files-found: error
