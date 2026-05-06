@@ -1,0 +1,78 @@
+name: Build WordPress Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    env:
+      PLUGIN_SLUG: wonder-payment-for-woocommerce
+      MAIN_PLUGIN_FILE: wonderpay-gateway-for-woocommerce.php
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare package directories
+        run: |
+          mkdir -p dist
+          mkdir -p "dist/${PLUGIN_SLUG}"
+
+      - name: Copy plugin files
+        run: |
+          cp "${MAIN_PLUGIN_FILE}" "dist/${PLUGIN_SLUG}/"
+          cp readme.txt "dist/${PLUGIN_SLUG}/"
+
+          for path in assets images includes vendor; do
+            if [ -e "$path" ]; then
+              cp -R "$path" "dist/${PLUGIN_SLUG}/"
+            fi
+          done
+
+      - name: Validate package contents
+        run: |
+          if find "dist/${PLUGIN_SLUG}" -name '.*' -print | grep -q .; then
+            echo 'Hidden files found in package contents.'
+            find "dist/${PLUGIN_SLUG}" -name '.*' -print
+            exit 1
+          fi
+
+          if [ ! -f "dist/${PLUGIN_SLUG}/${MAIN_PLUGIN_FILE}" ]; then
+            echo 'Main plugin file is missing from the package.'
+            exit 1
+          fi
+
+          if [ ! -f "dist/${PLUGIN_SLUG}/readme.txt" ]; then
+            echo 'readme.txt is missing from the package.'
+            exit 1
+          fi
+
+      - name: Read plugin version
+        id: version
+        run: |
+          version=$(grep -m1 '^Version:' "${MAIN_PLUGIN_FILE}" | cut -d ':' -f2- | xargs)
+          if [ -z "$version" ]; then
+            echo 'Failed to read plugin version.'
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create zip archive
+        run: |
+          cd dist
+          zip -r "${PLUGIN_SLUG}-${{ steps.version.outputs.version }}.zip" "${PLUGIN_SLUG}"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wordpress-plugin-${{ steps.version.outputs.version }}
+          path: dist/${{ env.PLUGIN_SLUG }}-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
