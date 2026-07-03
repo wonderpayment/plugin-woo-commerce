@@ -672,8 +672,9 @@
     height: 100%;
     object-fit: contain;
     border: none;
-    padding: 10px;
+    padding: 16px;
     border-radius: 12px;
+    box-sizing: border-box;
 }
 
 .wonder-qrcode-image {

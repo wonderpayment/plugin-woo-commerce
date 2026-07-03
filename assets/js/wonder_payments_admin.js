@@ -902,7 +902,7 @@
 
                 var uuid = response.data.uuid;
                 var shortUrl = response.data.sUrl;
-                var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(shortUrl);
+                var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=16&data=' + encodeURIComponent(shortUrl);
                 var $img = $container.find('.qr-code-placeholder img');
 
                 startPolling(uuid);
