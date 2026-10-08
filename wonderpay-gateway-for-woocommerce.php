@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonder.app/
 Description: Accept Wonder Payments in WooCommerce with payment links, webhooks, order sync, and refunds.
-Version: 1.0.4
+Version: 1.0.5
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
@@ -916,6 +916,12 @@ function wonder_payments_admin_scripts($hook)
             'noBusiness' => __('No business found', 'wonder-payment-for-woocommerce'),
             'loadBusinessFailed' => __('Failed to load business list', 'wonder-payment-for-woocommerce'),
             'generateLoading' => __('Generating key pair and app_id...', 'wonder-payment-for-woocommerce'),
+            'envProdLabel' => __('Production', 'wonder-payment-for-woocommerce'),
+            'envSandboxLabel' => __('Sandbox', 'wonder-payment-for-woocommerce'),
+            'envStatusBound' => __('Bound', 'wonder-payment-for-woocommerce'),
+            'envStatusUnbound' => __('Not bound', 'wonder-payment-for-woocommerce'),
+            'envSwitched' => __('Environment switched. Active App ID: ', 'wonder-payment-for-woocommerce'),
+            'envNeedRebind' => __(' environment is active but not connected yet. Please scan QR code to login and bind it.', 'wonder-payment-for-woocommerce'),
         ),
     );
 
@@ -1755,6 +1761,65 @@ function wonder_payments_sdk_create_app_id() {
 add_action('wp_ajax_wonder_payments_sdk_create_app_id', 'wonder_payments_sdk_create_app_id');
 
 /**
+ * Note: per-environment credential store. Production and sandbox bindings are kept side by side,
+ * so switching environments restores the matching credentials instead of forcing a full rebind.
+ */
+function wonder_payments_get_all_credentials() {
+    $credentials = get_option('wonder_payments_credentials', array());
+    if (!is_array($credentials)) {
+        $credentials = array();
+    }
+    if (!isset($credentials['prod']) || !is_array($credentials['prod'])) {
+        $credentials['prod'] = array();
+    }
+    if (!isset($credentials['stg']) || !is_array($credentials['stg'])) {
+        $credentials['stg'] = array();
+    }
+    return $credentials;
+}
+
+/**
+ * Note.
+ */
+function wonder_payments_get_env_credentials($environment) {
+    $credentials = wonder_payments_get_all_credentials();
+    return isset($credentials[$environment]) ? $credentials[$environment] : array();
+}
+
+/**
+ * Note.
+ */
+function wonder_payments_update_env_credentials($environment, $data) {
+    if (!in_array($environment, array('prod', 'stg'), true)) {
+        return false;
+    }
+
+    $credentials = wonder_payments_get_all_credentials();
+    $credentials[$environment] = is_array($data) ? $data : array();
+
+    return update_option('wonder_payments_credentials', $credentials, false);
+}
+
+/**
+ * Note.
+ */
+function wonder_payments_get_credentials_status() {
+    $status = array();
+
+    foreach (array('prod', 'stg') as $environment) {
+        $credentials = wonder_payments_get_env_credentials($environment);
+        $appId = isset($credentials['app_id']) ? $credentials['app_id'] : '';
+
+        $status[$environment] = array(
+            'bound' => ('' !== $appId),
+            'app_id' => $appId,
+        );
+    }
+
+    return $status;
+}
+
+/**
  * Note.
  */
 function wonder_payments_clear_all() {
@@ -1765,6 +1830,11 @@ function wonder_payments_clear_all() {
     }
 
     try {
+
+        // Note: reset only the active environment; the other environment's stored credentials are kept.
+        $settings = get_option('woocommerce_wonder_payments_settings', array());
+        $sandboxMode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
+        $currentEnvironment = ('1' === $sandboxMode) ? 'stg' : 'prod';
 
         // Note.
         delete_option('wonder_payments_app_id');
@@ -1781,14 +1851,19 @@ function wonder_payments_clear_all() {
         delete_option('wonder_payments_pending_business_id');
 
         // Note.
-        $settings = get_option('woocommerce_wonder_payments_settings', array());
+        wonder_payments_update_env_credentials($currentEnvironment, array());
+
+        // Note.
         $settings['app_id'] = '';
         $settings['private_key'] = '';
         $settings['generated_public_key'] = '';
         $settings['webhook_public_key'] = '';
         update_option('woocommerce_wonder_payments_settings', $settings);
 
-        wp_send_json_success(array('message' => 'All data cleared'));
+        wp_send_json_success(array(
+            'message' => 'All data cleared',
+            'credentials_status' => wonder_payments_get_credentials_status(),
+        ));
     } catch (Exception $e) {
         wp_send_json_error(array('message' => 'Failed to clear all data: ' . $e->getMessage()));
     }
@@ -1812,6 +1887,7 @@ function wonder_payments_load_settings() {
         if (empty($wcSettings)) {
             $wcSettings = get_option('wonder_payments_settings', array());
         }
+        $wcSettings['credentials_status'] = wonder_payments_get_credentials_status();
 
         wp_send_json_success(array('data' => $wcSettings));
     } catch (Exception $e) {
@@ -1858,22 +1934,65 @@ function wonder_payments_save_settings() {
     // Note.
     $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
     $previousEnvironment = isset($wcSettings['environment']) ? $wcSettings['environment'] : '';
-    $environmentChanged = ($previousEnvironment && $previousEnvironment !== $environment);
+    if ('' === $previousEnvironment) {
+        // First save or legacy config: derive the previous environment from sandbox_mode.
+        $previousSandboxMode = isset($wcSettings['sandbox_mode']) ? $wcSettings['sandbox_mode'] : '0';
+        $previousEnvironment = ('1' === $previousSandboxMode) ? 'stg' : 'prod';
+    }
+    $environmentChanged = ($previousEnvironment !== $environment);
+    $needRebind = false;
+    $restoredAppId = '';
+
     if ($environmentChanged) {
-        // Environment changed: clear credentials so user must regenerate matching App ID/keys.
-        $appId = '';
-        $privateKey = '';
-        $publicKey = '';
-        $webhookPublicKey = '';
+        // Snapshot the outgoing environment credentials so switching back restores them.
+        $snapshotAppId = isset($wcSettings['app_id']) ? $wcSettings['app_id'] : '';
+        if ('' !== $snapshotAppId) {
+            wonder_payments_update_env_credentials($previousEnvironment, array(
+                'app_id' => $snapshotAppId,
+                'private_key' => isset($wcSettings['private_key']) ? $wcSettings['private_key'] : '',
+                'generated_public_key' => isset($wcSettings['generated_public_key']) ? $wcSettings['generated_public_key'] : '',
+                'webhook_public_key' => isset($wcSettings['webhook_public_key']) ? $wcSettings['webhook_public_key'] : '',
+                'business_id' => get_option('wonder_payments_business_id', ''),
+                'business_name' => get_option('wonder_payments_business_name', ''),
+                'user_access_token' => get_option('wonder_payments_user_access_token', ''),
+            ));
+        }
 
-        $wcSettings['app_id'] = '';
-        $wcSettings['private_key'] = '';
-        $wcSettings['generated_public_key'] = '';
-        $wcSettings['webhook_public_key'] = '';
+        // Target environment: restore stored credentials, or mark for a fresh QR binding.
+        $targetCredentials = wonder_payments_get_env_credentials($environment);
+        $targetAppId = isset($targetCredentials['app_id']) ? $targetCredentials['app_id'] : '';
+        if ('' !== $targetAppId) {
+            $appId = $targetAppId;
+            $privateKey = isset($targetCredentials['private_key']) ? $targetCredentials['private_key'] : '';
+            $publicKey = isset($targetCredentials['generated_public_key']) ? $targetCredentials['generated_public_key'] : '';
+            $webhookPublicKey = isset($targetCredentials['webhook_public_key']) ? $targetCredentials['webhook_public_key'] : '';
+            $restoredAppId = $targetAppId;
 
-        delete_option('wonder_payments_private_key');
-        delete_option('wonder_payments_public_key');
-        delete_option('wonder_payments_webhook_key');
+            $targetBusinessId = isset($targetCredentials['business_id']) ? $targetCredentials['business_id'] : '';
+            $targetBusinessName = isset($targetCredentials['business_name']) ? $targetCredentials['business_name'] : '';
+            $targetToken = isset($targetCredentials['user_access_token']) ? $targetCredentials['user_access_token'] : '';
+            if ('' !== $targetBusinessId) {
+                update_option('wonder_payments_business_id', $targetBusinessId);
+            }
+            if ('' !== $targetBusinessName) {
+                update_option('wonder_payments_business_name', $targetBusinessName);
+            }
+            if ('' !== $targetToken) {
+                update_option('wonder_payments_user_access_token', $targetToken);
+            }
+        } else {
+            $appId = '';
+            $privateKey = '';
+            $publicKey = '';
+            $webhookPublicKey = '';
+            $needRebind = true;
+
+            delete_option('wonder_payments_private_key');
+            delete_option('wonder_payments_public_key');
+            delete_option('wonder_payments_webhook_key');
+        }
+
+        // Pending wizard data belongs to the previous environment.
         delete_option('wonder_payments_pending_private_key');
         delete_option('wonder_payments_pending_public_key');
         delete_option('wonder_payments_pending_webhook_key');
@@ -1904,10 +2023,11 @@ function wonder_payments_save_settings() {
         $wcSettings['environment'] = $environment;
         $wcSettings['due_date'] = $dueDate;
         if ($environmentChanged) {
-            $wcSettings['app_id'] = '';
-            $wcSettings['private_key'] = '';
-            $wcSettings['generated_public_key'] = '';
-            $wcSettings['webhook_public_key'] = '';
+            // Restored credentials (or empty when a rebind is required) were resolved above.
+            $wcSettings['app_id'] = $appId;
+            $wcSettings['private_key'] = $privateKey;
+            $wcSettings['generated_public_key'] = $publicKey;
+            $wcSettings['webhook_public_key'] = $webhookPublicKey;
         } else {
             if ($appId !== '') {
                 $wcSettings['app_id'] = $appId;
@@ -1930,6 +2050,19 @@ function wonder_payments_save_settings() {
 
         // Note.
         update_option('woocommerce_wonder_payments_settings', $wcSettings);
+
+        // Note: keep the per-environment store in sync with the active settings.
+        if ('' !== $wcSettings['app_id']) {
+            wonder_payments_update_env_credentials($environment, array(
+                'app_id' => $wcSettings['app_id'],
+                'private_key' => isset($wcSettings['private_key']) ? $wcSettings['private_key'] : '',
+                'generated_public_key' => isset($wcSettings['generated_public_key']) ? $wcSettings['generated_public_key'] : '',
+                'webhook_public_key' => isset($wcSettings['webhook_public_key']) ? $wcSettings['webhook_public_key'] : '',
+                'business_id' => get_option('wonder_payments_business_id', ''),
+                'business_name' => get_option('wonder_payments_business_name', ''),
+                'user_access_token' => get_option('wonder_payments_user_access_token', ''),
+            ));
+        }
 
         // Note.
         delete_option('wonder_payments_pending_private_key');
@@ -2041,7 +2174,10 @@ function wonder_payments_save_settings() {
 
         $response = array(
             'message' => 'Settings saved successfully',
-            'environment_changed' => $environmentChanged ? true : false
+            'environment_changed' => $environmentChanged ? true : false,
+            'need_rebind' => $needRebind ? true : false,
+            'restored_app_id' => $restoredAppId,
+            'credentials_status' => wonder_payments_get_credentials_status(),
         );
         if (!empty($sandboxDebug)) {
             $response['sandbox_debug'] = $sandboxDebug;

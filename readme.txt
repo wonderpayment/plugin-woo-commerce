@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -62,6 +62,13 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.5 =
+* Keep separate production and sandbox credentials so switching environments no longer wipes the active binding
+* Switching environments now restores the stored credentials of the target environment, or guides the merchant to rebind it via QR login
+* ReCreate now resets only the active environment and keeps the other environment's stored credentials
+* Show production and sandbox binding status in the setup wizard
+* Fix credentials mismatch when the environment is switched on first save, which caused payment requests to fail with HTTP 403
 
 = 1.0.4 =
 * Review fixes and packaging cleanup
