@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonder.app/
 Description: Accept Wonder Payments in WooCommerce with payment links, webhooks, order sync, and refunds.
-Version: 1.0.5
+Version: 1.0.6
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
