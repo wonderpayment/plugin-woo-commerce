@@ -7,6 +7,8 @@ Version: 1.0.6
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
+WC requires at least: 8.0
+WC tested up to: 10.7.0
 License: GPL v2 or later
 Text Domain: wonder-payment-for-woocommerce
 */
@@ -151,6 +153,81 @@ function wonder_payments_normalize_request_uri($value) {
 }
 
 /**
+ * Return the OMS endpoint used to fetch Wonder platform credentials.
+ *
+ * @param string $environment Supported values: prod, stg.
+ * @return string
+ */
+function wonder_payments_get_platform_credentials_endpoint($environment) {
+    if ($environment === 'stg') {
+        return 'https://gateway-stg.wonder.today/svc/taxi/public/api/v1/payment_plug/woo?environment=stg';
+    }
+
+    return 'https://gateway.wonder.today/svc/taxi/public/api/v1/payment_plug/woo?environment=prod';
+}
+
+/**
+ * Return Wonder platform credentials for the requested environment.
+ *
+ * @param string $environment Supported values: prod, stg.
+ * @return array{app_key:string,jwt:string}
+ * @throws Exception When credentials cannot be fetched or validated.
+ */
+function wonder_payments_get_platform_credentials($environment) {
+    $environment = $environment === 'stg' ? 'stg' : 'prod';
+    $cache_key = 'wonder_payments_platform_credentials_' . $environment;
+    $cached_credentials = get_transient($cache_key);
+
+    if (
+        is_array($cached_credentials) &&
+        !empty($cached_credentials['app_key']) &&
+        !empty($cached_credentials['jwt'])
+    ) {
+        return $cached_credentials;
+    }
+
+    $response = wp_remote_get(
+        wonder_payments_get_platform_credentials_endpoint($environment),
+        array(
+            'timeout' => 15,
+            'headers' => array(
+                'Accept' => 'application/json',
+            ),
+        )
+    );
+
+    if (is_wp_error($response)) {
+        throw new Exception('Failed to fetch platform credentials: ' . $response->get_error_message());
+    }
+
+    $status_code = wp_remote_retrieve_response_code($response);
+    $body = wp_remote_retrieve_body($response);
+    $payload = json_decode($body, true);
+
+    if ($status_code < 200 || $status_code >= 300) {
+        $message = is_array($payload) && !empty($payload['error']) ? $payload['error'] : 'unexpected response';
+        throw new Exception('Failed to fetch platform credentials: ' . $message);
+    }
+
+    if (
+        !is_array($payload) ||
+        empty($payload['app_key']) ||
+        empty($payload['jwt'])
+    ) {
+        throw new Exception('Failed to fetch platform credentials: invalid payload');
+    }
+
+    $credentials = array(
+        'app_key' => (string) $payload['app_key'],
+        'jwt' => (string) $payload['jwt'],
+    );
+
+    set_transient($cache_key, $credentials, MINUTE_IN_SECONDS * 10);
+
+    return $credentials;
+}
+
+/**
  * Check whether the current admin page is the WooCommerce checkout settings page.
  *
  * @return bool
@@ -242,6 +319,7 @@ add_action('plugins_loaded', 'wonder_payments_init_gateway', 0);
 add_action('before_woocommerce_init', function() {
     if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
         $plugin_file = plugin_basename(__FILE__);
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', $plugin_file, true);
         \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', $plugin_file, true);
     }
 });
@@ -1100,9 +1178,8 @@ function wonder_payments_sdk_create_qrcode() {
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
         $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
         $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-        $jwtToken = ($environment === 'prod')
-            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $platformCredentials = wonder_payments_get_platform_credentials($environment);
+        $jwtToken = $platformCredentials['jwt'];
         $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         if ($sandbox_mode === '1') {
@@ -1161,9 +1238,8 @@ function wonder_payments_sdk_qrcode_status() {
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
         $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
         $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-        $jwtToken = ($environment === 'prod')
-            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $platformCredentials = wonder_payments_get_platform_credentials($environment);
+        $jwtToken = $platformCredentials['jwt'];
         $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         // Note.
@@ -1203,9 +1279,8 @@ function wonder_payments_sdk_get_businesses() {
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
         $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
         $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-        $jwtToken = ($environment === 'prod')
-            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $platformCredentials = wonder_payments_get_platform_credentials($environment);
+        $jwtToken = $platformCredentials['jwt'];
         $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         // Note.
@@ -1274,9 +1349,8 @@ function wonder_payments_sdk_save_access_token() {
     $settings = get_option('woocommerce_wonder_payments_settings', array());
     $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
     $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-    $jwtToken = ($environment === 'prod')
-        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-        : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+    $platformCredentials = wonder_payments_get_platform_credentials($environment);
+    $jwtToken = $platformCredentials['jwt'];
     $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
     $sdk = new PaymentSDK([
@@ -1319,9 +1393,8 @@ function wonder_payments_sdk_get_user_info() {
     $settings = get_option('woocommerce_wonder_payments_settings', array());
     $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
     $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-    $jwtToken = ($environment === 'prod')
-        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-        : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+    $platformCredentials = wonder_payments_get_platform_credentials($environment);
+    $jwtToken = $platformCredentials['jwt'];
     $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
     try {
@@ -1363,9 +1436,8 @@ function wonder_payments_sdk_generate_app_id() {
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
         $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
         $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-        $jwtToken = ($environment === 'prod')
-            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $platformCredentials = wonder_payments_get_platform_credentials($environment);
+        $jwtToken = $platformCredentials['jwt'];
         $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         // Note.
@@ -1676,9 +1748,8 @@ function wonder_payments_sdk_create_app_id() {
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
         $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
-        $jwtToken = ($environment === 'prod')
-            ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiOWE1NGVkNTItN2EyYy00ZDA4LWFhYmMtNGUxYzU0OGZmZjAyIiwiYXBwX2lkIjoiMDJjYTAxZmYtNzZkOC00NTQyLWE1Y2YtMmU1YzY1ZTQ0MmI4IiwiaWF0IjoxNjgyMDEwMTg5LCJleHAiOjE5OTczNzAxODl9.tr9s1n6YmqvubeXmsZvRTBN-B4UcaVOrT4gjjFpO6QM'
-            : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+        $platformCredentials = wonder_payments_get_platform_credentials($environment);
+        $jwtToken = $platformCredentials['jwt'];
         $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
 
         if ($sandbox_mode === '1') {
@@ -1987,7 +2058,8 @@ function wonder_payments_save_settings() {
             $accessToken = get_option('wonder_payments_user_access_token', '');
 
             if ($referenceId && $accessToken) {
-                $jwtToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfa2V5IjoiMDJlYjMzNjItMWNjYi00MDYzLThmNWUtODI1ZmRlNzYxZWZiIiwiYXBwX2lkIjoiODBhOTg0ZTItNGVjNC00ZDA2LWFiYTktZTQzMDEwOTU2ZTEzIiwiaWF0IjoxNjgxMzkyMzkyLCJleHAiOjE5OTY3NTIzOTJ9.2UF7FOI-d344wJsZt5zVg7dC2r1DzqdmSV_bhSpdt-I';
+                $platformCredentials = wonder_payments_get_platform_credentials('stg');
+                $jwtToken = $platformCredentials['jwt'];
                 $sdk = new PaymentSDK([
                     'appid' => '',
                     'signaturePrivateKey' => '',

@@ -121,10 +121,13 @@
             return;
         }
 
-        $title.find('.wonder-payments-status-badge').remove();
+        var $badge = $title.find('.wonder-payments-status-badge');
+        var needsAction = gatewayStatus.enabled === 'yes' && (!gatewayStatus.appId || !gatewayStatus.privateKey);
 
-        if (gatewayStatus.enabled === 'yes' && (!gatewayStatus.appId || !gatewayStatus.privateKey)) {
+        if (needsAction && !$badge.length) {
             $title.append(' <span class="wonder-payments-status-badge wonder-payments-status-action-needed">Action needed</span>');
+        } else if (!needsAction && $badge.length) {
+            $badge.remove();
         }
     }
 
