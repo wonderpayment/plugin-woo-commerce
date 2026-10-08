@@ -1848,9 +1848,9 @@ function wonder_payments_generate_key_pair_only() {
             if (!empty($sandboxBinding['app_id']) && $currentBusinessId === $sandboxBinding['business_id']) {
                 wp_send_json_success(array(
                     'data' => array(
-                        'public_key' => isset($sandboxBinding['generated_public_key']) ? $sandboxBinding['generated_public_key'] : '',
+                        'generated_public_key' => isset($sandboxBinding['generated_public_key']) ? $sandboxBinding['generated_public_key'] : '',
                         'private_key' => isset($sandboxBinding['private_key']) ? $sandboxBinding['private_key'] : '',
-                        'webhook_key' => isset($sandboxBinding['webhook_public_key']) ? $sandboxBinding['webhook_public_key'] : '',
+                        'webhook_public_key' => isset($sandboxBinding['webhook_public_key']) ? $sandboxBinding['webhook_public_key'] : '',
                         'app_id' => $sandboxBinding['app_id'],
                         'business_name' => isset($sandboxBinding['business_name']) ? $sandboxBinding['business_name'] : ''
                     )
@@ -1863,9 +1863,9 @@ function wonder_payments_generate_key_pair_only() {
 
             wp_send_json_success(array(
                 'data' => array(
-                    'public_key' => $storedPublicKey,
+                    'generated_public_key' => $storedPublicKey,
                     'private_key' => $storedPrivateKey,
-                    'webhook_key' => $storedWebhookKey,
+                    'webhook_public_key' => $storedWebhookKey,
                     'app_id' => $savedAppId
                 )
             ));
@@ -1894,9 +1894,9 @@ function wonder_payments_generate_key_pair_only() {
         if ($pendingBusinessId === $currentBusinessId && $pendingPrivateKey && $pendingPublicKey) {
             wp_send_json_success(array(
                 'data' => array(
-                    'public_key' => $pendingPublicKey,
+                    'generated_public_key' => $pendingPublicKey,
                     'private_key' => $pendingPrivateKey,
-                    'webhook_key' => $pendingWebhookKey,
+                    'webhook_public_key' => $pendingWebhookKey,
                     'app_id' => $pendingAppId
                 )
             ));
@@ -1930,9 +1930,9 @@ function wonder_payments_generate_key_pair_only() {
 
         wp_send_json_success(array(
             'data' => array(
-                'public_key' => $publicKey,
+                'generated_public_key' => $publicKey,
                 'private_key' => $privateKey,
-                'webhook_key' => '',
+                'webhook_public_key' => '',
                 'app_id' => $appIdToReturn
             )
         ));

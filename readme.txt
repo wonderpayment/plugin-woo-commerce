@@ -64,6 +64,7 @@ Related documentation and policies:
 * Live and sandbox credentials are stored separately, so switching sandbox mode no longer resets or mismatches credentials
 * Webhook signature verification now accepts both live and sandbox webhook keys
 * The setup wizard gains a live/sandbox mode switch and clearer in-wizard error messages
+* Fix the setup wizard not showing the generated public key in the activation form
 
 = 1.0.6 =
 * Maintenance release: realign the plugin package with the current release channel
