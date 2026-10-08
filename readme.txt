@@ -3,11 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-<<<<<<< HEAD
 Stable tag: 1.0.6
-=======
-Stable tag: 1.0.4
->>>>>>> parent of 5308885 (feat: prod/sandbox 双环境凭证独立保存，切换环境不再清空绑定)
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
