@@ -3,7 +3,11 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
+<<<<<<< HEAD
 Stable tag: 1.0.6
+=======
+Stable tag: 1.0.4
+>>>>>>> parent of 5308885 (feat: prod/sandbox 双环境凭证独立保存，切换环境不再清空绑定)
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -64,14 +68,10 @@ Related documentation and policies:
 == Changelog ==
 
 = 1.0.6 =
-* Maintenance release: version bump for repackaging
+* Maintenance release: realign the plugin package with the current release channel
 
 = 1.0.5 =
-* Keep separate production and sandbox credentials so switching environments no longer wipes the active binding
-* Switching environments now restores the stored credentials of the target environment, or guides the merchant to rebind it via QR login
-* ReCreate now resets only the active environment and keeps the other environment's stored credentials
-* Show production and sandbox binding status in the setup wizard
-* Fix credentials mismatch when the environment is switched on first save, which caused payment requests to fail with HTTP 403
+* Fix the WooCommerce payment settings page becoming unresponsive during initial Wonder Payment setup.
 
 = 1.0.4 =
 * Review fixes and packaging cleanup

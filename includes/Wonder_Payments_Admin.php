@@ -181,7 +181,6 @@ class Wonder_Payments_Admin {
                                 </div>
                             </div>
                             <div class="form-hint">Please turn off sandbox mode before you go live</div>
-                            <div class="form-hint" id="sandbox-env-status"></div>
                         </div>
 
                         <!-- Payment Due Days section -->

@@ -26,13 +26,7 @@
         loadingBusinesses: 'Loading business list...',
         noBusiness: 'No business found',
         loadBusinessFailed: 'Failed to load business list',
-        generateLoading: 'Generating key pair and app_id...',
-        envProdLabel: 'Production',
-        envSandboxLabel: 'Sandbox',
-        envStatusBound: 'Bound',
-        envStatusUnbound: 'Not bound',
-        envSwitched: 'Environment switched. Active App ID: ',
-        envNeedRebind: ' environment is active but not connected yet. Please scan QR code to login and bind it.'
+        generateLoading: 'Generating key pair and app_id...'
     }, config.strings || {});
     var gatewayStatus = Object.assign({}, {
         enabled: 'no',
@@ -815,31 +809,6 @@
             });
         }
 
-        function renderEnvStatus(status) {
-            var $status = $container.find('#sandbox-env-status');
-            if (!$status.length) {
-                return;
-            }
-
-            status = status || {};
-            var parts = [];
-            var environments = [
-                { key: 'prod', label: strings.envProdLabel },
-                { key: 'stg', label: strings.envSandboxLabel }
-            ];
-
-            environments.forEach(function(env) {
-                var info = status[env.key] || {};
-                var appId = info.app_id || '';
-                var display = info.bound
-                    ? strings.envStatusBound + ' (' + escapeHtml(appId.length > 12 ? appId.substring(0, 12) + '...' : appId) + ')'
-                    : strings.envStatusUnbound;
-                parts.push(env.label + ': ' + display);
-            });
-
-            $status.text(parts.join(' | '));
-        }
-
         function loadSettings() {
             setTimeout(function() {
                 postAjax({
@@ -853,12 +822,11 @@
                     $container.find('#settings-description').val(settingsData.description || '');
                     $container.find('#settings-due-date').val(settingsData.due_date || '30');
                     $container.find('#settings-sandbox').attr('data-enabled', settingsData.sandbox_mode === '1' ? 'true' : 'false');
-                    renderEnvStatus(settingsData.credentials_status);
                 });
             }, 100);
         }
 
-        function saveSettings() {
+        function saveSettings(skipRegen) {
             var settingsData = {
                 title: $container.find('#settings-title').val(),
                 description: $container.find('#settings-description').val(),
@@ -878,27 +846,35 @@
                 settings: settingsData
             }).done(function(response) {
                 if (response && response.success) {
-                    var data = response.data || {};
-                    var envChanged = !!data.environment_changed;
+                    var envChanged = response.data && response.data.environment_changed;
 
-                    if (envChanged && data.need_rebind) {
-                        // Switched to an environment without stored credentials: guide the user to bind it via QR login.
+                    if (envChanged && !skipRegen) {
+                        var businessId = localStorage.getItem('wonder_selected_business_id') || localStorage.getItem('wonder_business_id');
+                        var businessName = localStorage.getItem('wonder_selected_business_name') || '';
+
                         $container.find('#app-id-input, #private-key-input, #public-key-input, #webhook-key-input').val('');
-                        renderEnvStatus(data.credentials_status);
 
-                        var envLabel = $container.find('#settings-sandbox').attr('data-enabled') === 'true' ? strings.envSandboxLabel : strings.envProdLabel;
-                        showInlineMessage($container.find('#sandbox-env-status'), 'error', envLabel + strings.envNeedRebind);
-
-                        activateTab('scan');
-                        generateQRCode();
-                        return;
-                    }
-
-                    if (envChanged && data.restored_app_id) {
-                        renderEnvStatus(data.credentials_status);
-                        showInlineMessage($container.find('#sandbox-env-status'), 'success', strings.envSwitched + data.restored_app_id);
-                        $container.find('#save-settings-btn').text(strings.save).prop('disabled', false);
-                        return;
+                        if (businessId) {
+                            generateKeyPairOnly(
+                                businessId,
+                                function() {
+                                    generateAppIdOnly(
+                                        businessId,
+                                        businessName,
+                                        function() {
+                                            saveSettings(true);
+                                        },
+                                        function() {
+                                            $container.find('#save-settings-btn').text(strings.save).prop('disabled', false);
+                                        }
+                                    );
+                                },
+                                function() {
+                                    $container.find('#save-settings-btn').text(strings.save).prop('disabled', false);
+                                }
+                            );
+                            return;
+                        }
                     }
 
                     closeWonderModal();
@@ -1051,7 +1027,7 @@
             })
             .on('click.wonderPaymentsModal', '#save-settings-btn', function(event) {
                 event.preventDefault();
-                saveSettings();
+                saveSettings(false);
             })
             .on('click.wonderPaymentsModal', '#settings-sandbox', function(event) {
                 event.preventDefault();
