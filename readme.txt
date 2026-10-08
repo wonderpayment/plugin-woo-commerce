@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -30,10 +30,13 @@ Depending on the feature used, the plugin may send the following data to Wonder:
 
 Wonder may send webhook requests back to the store callback URL when order or payment status changes. Those requests can include order numbers, reference numbers, payment state, paid total, transaction identifiers, and related order details.
 
-The plugin always connects to the production Wonder service endpoints. Sandbox mode is a test mode inside the production domain, so it uses the same endpoints:
+The plugin uses the following Wonder service endpoints depending on the selected mode. Live mode uses production endpoints; sandbox mode runs on the platform's sandbox endpoints: sandbox identity derivation and business cloning run on the staging merchant portal and the sandbox registry gateway, and sandbox orders, payments, and refunds run on the staging API gateway:
 
 - Production API: `https://gateway.wonder.today`
+- Staging API (sandbox payments): `https://gateway-stg.wonder.today`
 - Production merchant setup service: `https://main.bindo.co`
+- Staging merchant setup service (sandbox identity derivation): `https://main-stg.bindo.co`
+- Sandbox registry service (sandbox business cloning): `https://gateway-alpha.wonder.app`
 
 The setup wizard also calls the following external QR code rendering service while the merchant setup modal is open:
 
@@ -58,6 +61,13 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.8 =
+* Restore the correct sandbox routing: sandbox payments run against the staging gateway, where the sandbox business and its App ID live, instead of the production gateway (1.0.7 pointed them at the wrong domain and sandbox activation always failed)
+* Sandbox identity derivation and business cloning call the platform's sandbox endpoints again, so enabling sandbox mode no longer fails with "Invalid operation"
+* Legacy staging credentials from versions up to 1.0.6 are migrated into the separate sandbox credential store instead of being discarded
+* Keep all 1.0.7 credential-safety fixes: separate live/sandbox credential stores, webhook signature verification accepting both keys, wizard failure messages that keep the sandbox switch in sync with what was actually saved
+* Remove unused AJAX handlers left over from earlier versions (order debug data and log export endpoints that no UI ever called)
 
 = 1.0.7 =
 * Fix "Invalid credential" errors that could happen when sandbox mode was enabled: sandbox now runs as a test mode inside the production domain instead of switching to staging endpoints

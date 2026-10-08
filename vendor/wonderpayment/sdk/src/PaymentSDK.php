@@ -282,6 +282,14 @@ class PaymentSDK
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);  // Connection timeout 5 seconds
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);        // Total timeout 30 seconds
 
+        // Initialize the logger so payment/refund/sync failures are traceable in
+        // the WooCommerce log; before this the 403 "Invalid credential" errors
+        // thrown here left no trace at all.
+        $logger = null;
+        if (function_exists('wc_get_logger')) {
+            $logger = wc_get_logger();
+        }
+
         // Execute request
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -289,21 +297,48 @@ class PaymentSDK
 
         if ($error) {
             curl_close($ch);
+            if ($logger) {
+                $logger->error('SDK request cURL error', [
+                    'source' => 'wonderpay-gateway-for-woocommerce',
+                    'method' => $method,
+                    'url' => $fullUrl,
+                    'error' => $error
+                ]);
+            }
             throw new Exception('cURL error: ' . $error);
         }
 
         // Close cURL handle
         curl_close($ch);
 
+        if ($logger) {
+            $logContext = [
+                'source' => 'wonderpay-gateway-for-woocommerce',
+                'method' => $method,
+                'url' => $fullUrl,
+                'http_status' => $httpCode,
+                'response' => $response
+            ];
+        }
+
         // Parse response
         $responseData = json_decode($response, true);
 
         if ($httpCode >= 400) {
+            if ($logger) {
+                $logger->error('SDK request API error', $logContext);
+            }
             throw new Exception('API请求失败，HTTP状态码: ' . $httpCode . ', 响应: ' . $response);
         }
 
         if ($responseData === null) {
+            if ($logger) {
+                $logger->error('SDK request invalid JSON', $logContext);
+            }
             throw new Exception('无法解析API响应: ' . $response);
+        }
+        if ($logger) {
+            $logger->debug('SDK request success', $logContext);
         }
         return $responseData;
     }
@@ -1041,7 +1076,8 @@ class PaymentSDK
             'reference_id' => $referenceId
         ]);
 
-        $url = $this->getQRCodeBaseUrl() . '/svc/user/public/login';
+        // Platform's sandbox identity derivation endpoint only exists on the staging portal
+        $url = 'https://main-stg.bindo.co/svc/user/public/login';
         return $this->makeQRCodeRequest('POST', $url, $headers, $body);
     }
 
@@ -1068,13 +1104,15 @@ class PaymentSDK
         }
 
         $requestId = $this->generateUUIDv4();
-        $url = $this->getQRCodeGatewayBaseUrl() . '/api/registry/onboarding/sandbox/business';
+        // Platform's sandbox business cloning endpoint is served by the alpha registry gateway
+        // with its own fixed application credentials (verified combination since 1.0.4)
+        $url = 'https://gateway-alpha.wonder.app/api/registry/onboarding/sandbox/business';
 
         $headers = [
-            'x-app-key: ' . $this->qrCodeAppKey,
-            'x-app-slug: ' . $this->qrCodeAppSlug,
-            'x-client-id: ' . $this->qrCodeClientId,
-            'x-i18n-lang: ' . $this->language,
+            'x-app-key: 6bad4911-baa7-4588-997c-09d23d1072df',
+            'x-app-slug: JgG9C',
+            'x-client-id: 2adf8123-d65e-435e-a7c2-e0f90edd2b3f',
+            'x-i18n-lang: zh-CN',
             'x-internal: TRUE',
             'x-p-business-id: ' . $pBusinessId,
             'x-request-id: ' . $requestId,

@@ -300,12 +300,18 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
     /**
      * Get environment config
      *
-     * The Wonder sandbox is a mode inside the production domain, so the gateway
-     * always talks to production. Kept as a method for existing call sites.
+     * Returns the gateway environment matching the active mode: sandbox mode
+     * routes payment traffic to the staging gateway, live mode to production.
      *
-     * @return string
+     * @return string 'prod' or 'stg'
      */
     public function get_environment() {
+        // Route and the active credential set derive from the same sandbox_mode switch,
+        // so gateway environment and credentials can never disagree.
+        $settings = get_option('woocommerce_wonder_payments_settings', array());
+        if (is_array($settings) && isset($settings['sandbox_mode']) && $settings['sandbox_mode'] === '1') {
+            return 'stg';
+        }
         return 'prod';
     }
     public function is_available() {

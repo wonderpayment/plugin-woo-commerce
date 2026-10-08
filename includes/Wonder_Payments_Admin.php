@@ -114,16 +114,11 @@ class Wonder_Payments_Admin {
                     <!--                    <h1 class="content-title">Activation AppID</h1>-->
 
                     <div class="activation-form">
-                        <!-- Mode section -->
+                        <!-- Mode status (read-only; follows the Sandbox switch on the Settings tab) -->
                         <div class="form-group">
                             <label class="form-label">Mode</label>
-                            <div class="toggle-switch">
-                                <div id="activation-mode" class="toggle-button" data-enabled="false">
-                                    <span class="toggle-slider"></span>
-                                    <span class="toggle-text">Live Mode</span>
-                                </div>
-                            </div>
-                            <div class="form-hint">Turn on to create sandbox test credentials. Sandbox runs on the production domain with test data; live and sandbox credentials are stored separately.</div>
+                            <div id="activation-mode-status" class="form-hint">Sandbox mode is off &mdash; you are activating live credentials.</div>
+                            <div class="form-hint">Sandbox is a test mode inside the production domain; live and sandbox credentials are stored separately.</div>
                         </div>
 
                         <!-- AppID section -->

@@ -521,15 +521,15 @@
         }
 
         function getWizardMode() {
-            return $container.find('#activation-mode').attr('data-enabled') === 'true' ? 'sandbox' : 'live';
+            return $container.find('#settings-sandbox').attr('data-enabled') === 'true' ? 'sandbox' : 'live';
         }
 
         function setWizardMode(isSandbox) {
-            $container.find('#activation-mode')
-                .attr('data-enabled', isSandbox ? 'true' : 'false')
-                .find('.toggle-text')
-                .text(isSandbox ? 'Sandbox Mode' : 'Live Mode');
             $container.find('#settings-sandbox').attr('data-enabled', isSandbox ? 'true' : 'false');
+            $container.find('#activation-mode-status')
+                .text(isSandbox
+                    ? 'Sandbox mode is on — you are activating sandbox credentials.'
+                    : 'Sandbox mode is off — you are activating live credentials.');
         }
 
         function showWizardFeedback(selector, message, type) {
@@ -917,8 +917,21 @@
                 }
 
                 showWizardFeedback('#settings-notice',
-                    response && response.data && response.data.message ? response.data.message : 'Failed to save settings.',
+                    (response && response.data && response.data.message
+                        ? response.data.message + ' — settings were NOT saved.'
+                        : 'Failed to save settings — settings were NOT saved.'),
                     'error');
+
+                // The save failed, so snap the sandbox switch back to what is
+                // actually stored instead of leaving it on the attempted value.
+                postAjax({
+                    action: 'wonder_payments_load_settings',
+                    security: nonces.modal
+                }).done(function(res) {
+                    if (res && res.success && res.data && res.data.settings) {
+                        setWizardMode(res.data.settings.sandbox_mode === '1');
+                    }
+                });
             }).fail(function(xhr, status, error) {
                 showWizardFeedback('#settings-notice', 'Failed to save settings: ' + (error || status), 'error');
             }).always(function() {
@@ -1074,11 +1087,6 @@
                 event.preventDefault();
                 var nextValue = $(this).attr('data-enabled') === 'true' ? 'false' : 'true';
                 setWizardMode(nextValue === 'true');
-            })
-            .on('click.wonderPaymentsModal', '#activation-mode', function(event) {
-                event.preventDefault();
-                var nextMode = getWizardMode() === 'sandbox' ? 'live' : 'sandbox';
-                setWizardMode(nextMode === 'sandbox');
 
                 // Reload the activation inputs for the newly selected mode.
                 $container.find('#app-id-input, #private-key-input, #public-key-input, #webhook-key-input').val('');
