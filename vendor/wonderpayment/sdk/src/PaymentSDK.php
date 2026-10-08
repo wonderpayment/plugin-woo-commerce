@@ -1025,17 +1025,6 @@ class PaymentSDK
 
         $requestId = $this->generateUUIDv4();
 
-//        $headers = [
-//            'x-app-key: 6bad4911-baa7-4588-997c-09d23d1072df',
-//            'x-app-slug: JgG9C',
-//            'x-client-id: c4a2b6cf-983a-4117-b75f-bbeac3897c0f',
-//            'x-i18n-lang: zh-CN',
-//            'x-internal: TRUE',
-//            'x-request-id: ' . $requestId,
-//            'x-user-access-token: ' . $this->userAccessToken,
-//            'Accept: application/json',
-//            'Content-Type: application/json'
-//        ];
         $headers = [
             'x-app-key: ' . $this->qrCodeAppKey,
             'x-app-slug: ' . $this->qrCodeAppSlug,
@@ -1052,7 +1041,7 @@ class PaymentSDK
             'reference_id' => $referenceId
         ]);
 
-        $url = 'https://main-stg.bindo.co/svc/user/public/login';
+        $url = $this->getQRCodeBaseUrl() . '/svc/user/public/login';
         return $this->makeQRCodeRequest('POST', $url, $headers, $body);
     }
 
@@ -1079,13 +1068,13 @@ class PaymentSDK
         }
 
         $requestId = $this->generateUUIDv4();
-        $url = 'https://gateway-alpha.wonder.app/api/registry/onboarding/sandbox/business';
+        $url = $this->getQRCodeGatewayBaseUrl() . '/api/registry/onboarding/sandbox/business';
 
         $headers = [
-            'x-app-key: 6bad4911-baa7-4588-997c-09d23d1072df',
-            'x-app-slug: JgG9C',
-            'x-client-id: 2adf8123-d65e-435e-a7c2-e0f90edd2b3d',
-            'x-i18n-lang: zh-CN',
+            'x-app-key: ' . $this->qrCodeAppKey,
+            'x-app-slug: ' . $this->qrCodeAppSlug,
+            'x-client-id: ' . $this->qrCodeClientId,
+            'x-i18n-lang: ' . $this->language,
             'x-internal: TRUE',
             'x-p-business-id: ' . $pBusinessId,
             'x-request-id: ' . $requestId,

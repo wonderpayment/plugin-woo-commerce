@@ -114,6 +114,18 @@ class Wonder_Payments_Admin {
                     <!--                    <h1 class="content-title">Activation AppID</h1>-->
 
                     <div class="activation-form">
+                        <!-- Mode section -->
+                        <div class="form-group">
+                            <label class="form-label">Mode</label>
+                            <div class="toggle-switch">
+                                <div id="activation-mode" class="toggle-button" data-enabled="false">
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-text">Live Mode</span>
+                                </div>
+                            </div>
+                            <div class="form-hint">Turn on to create sandbox test credentials. Sandbox runs on the production domain with test data; live and sandbox credentials are stored separately.</div>
+                        </div>
+
                         <!-- AppID section -->
                         <div class="form-group">
                             <label class="form-label">AppID</label>
@@ -143,6 +155,9 @@ class Wonder_Payments_Admin {
                             <textarea id="webhook-key-input" class="form-textarea" rows="4" readonly></textarea>
                             <div class="form-hint">Webhook key will be automatically generated after created</div>
                         </div>
+
+                        <!-- Wizard feedback area -->
+                        <div id="activation-feedback" class="wonder-inline-notice"></div>
 
                         <!-- Action buttons -->
                         <div class="form-actions">
@@ -188,6 +203,9 @@ class Wonder_Payments_Admin {
                             <label class="form-label">Payment Due Days</label>
                             <input type="number" id="settings-due-date" class="form-input" min="1" max="365" value="30">
                         </div>
+
+                        <!-- Settings feedback area -->
+                        <div id="settings-notice" class="wonder-inline-notice"></div>
 
                         <!-- Action buttons -->
                         <div class="form-actions">

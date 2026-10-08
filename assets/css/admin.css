@@ -428,6 +428,29 @@
     font-style: italic;
 }
 
+.wonder-inline-notice {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.wonder-inline-notice.is-error {
+    display: block;
+    background: #fcf0f1;
+    color: #8a2424;
+    border: 1px solid #ffafcc;
+}
+
+.wonder-inline-notice.is-info {
+    display: block;
+    background: #f0f6fc;
+    color: #1d4e9c;
+    border: 1px solid #b6d3f5;
+}
+
 .toggle-switch {
     display: flex;
     align-items: center;

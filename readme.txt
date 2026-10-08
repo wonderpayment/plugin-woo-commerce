@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -30,14 +30,10 @@ Depending on the feature used, the plugin may send the following data to Wonder:
 
 Wonder may send webhook requests back to the store callback URL when order or payment status changes. Those requests can include order numbers, reference numbers, payment state, paid total, transaction identifiers, and related order details.
 
-The plugin uses the following Wonder service endpoints depending on the selected environment:
+The plugin always connects to the production Wonder service endpoints. Sandbox mode is a test mode inside the production domain, so it uses the same endpoints:
 
 - Production API: `https://gateway.wonder.today`
-- Alpha / test API: `https://gateway-alpha.wonder.app`
-- Staging API: `https://gateway-stg.wonder.today`
 - Production merchant setup service: `https://main.bindo.co`
-- Alpha merchant setup service: `https://main-alpha.bindo.co`
-- Staging merchant setup service: `https://main-stg.bindo.co`
 
 The setup wizard also calls the following external QR code rendering service while the merchant setup modal is open:
 
@@ -62,6 +58,12 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.7 =
+* Fix "Invalid credential" errors that could happen when sandbox mode was enabled: sandbox now runs as a test mode inside the production domain instead of switching to staging endpoints
+* Live and sandbox credentials are stored separately, so switching sandbox mode no longer resets or mismatches credentials
+* Webhook signature verification now accepts both live and sandbox webhook keys
+* The setup wizard gains a live/sandbox mode switch and clearer in-wizard error messages
 
 = 1.0.6 =
 * Maintenance release: realign the plugin package with the current release channel

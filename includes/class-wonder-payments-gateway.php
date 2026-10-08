@@ -54,6 +54,19 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         $this->webhook_public_key = $this->get_option('webhook_public_key');
         $this->due_date = $this->get_option('due_date'); // New payment due days
 
+        // Sandbox mode keeps its own credential set; when it is active, payments must
+        // use the sandbox App ID instead of the live one stored in the main settings.
+        $raw_settings = get_option('woocommerce_wonder_payments_settings', array());
+        if (is_array($raw_settings) && isset($raw_settings['sandbox_mode']) && $raw_settings['sandbox_mode'] === '1') {
+            $sandbox_binding = get_option('wonder_payments_sandbox_binding', array());
+            if (is_array($sandbox_binding)) {
+                $this->app_id = isset($sandbox_binding['app_id']) ? $sandbox_binding['app_id'] : '';
+                $this->private_key = isset($sandbox_binding['private_key']) ? $sandbox_binding['private_key'] : '';
+                $this->generated_public_key = isset($sandbox_binding['generated_public_key']) ? $sandbox_binding['generated_public_key'] : '';
+                $this->webhook_public_key = isset($sandbox_binding['webhook_public_key']) ? $sandbox_binding['webhook_public_key'] : '';
+            }
+        }
+
         // Save settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
 
@@ -232,20 +245,6 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
 
         check_ajax_referer('wonder_generate_keys', 'security');
 
-        // Get current environment config
-        $settings = get_option('woocommerce_wonder_payments_settings', array());
-        $environment = isset($settings['environment']) ? $settings['environment'] : 'prod';
-        if ($environment !== 'prod' && $environment !== 'stg') {
-            $environment = 'prod';
-        }
-        if ($environment === 'prod') {
-            $api_endpoint = 'https://gateway.wonder.today';
-        } elseif ($environment === 'alpha') {
-            $api_endpoint = 'https://gateway-alpha.wonder.app';
-        } else {
-            $api_endpoint = 'https://gateway-stg.wonder.today';
-        }
-
         try {
             // Generate 4096-bit RSA key pair
             $config = array(
@@ -301,15 +300,13 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
     /**
      * Get environment config
      *
-     * @return string 'stg' or 'prod'
+     * The Wonder sandbox is a mode inside the production domain, so the gateway
+     * always talks to production. Kept as a method for existing call sites.
+     *
+     * @return string
      */
     public function get_environment() {
-        $settings = get_option('woocommerce_wonder_payments_settings', array());
-        $environment = isset($settings['environment']) ? $settings['environment'] : 'prod';
-        if ($environment !== 'prod' && $environment !== 'stg' && $environment !== 'alpha') {
-            $environment = 'prod';
-        }
-        return $environment;
+        return 'prod';
     }
     public function is_available() {
         $logger = $this->get_logger();
@@ -915,12 +912,27 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
             wp_die('SDK not available for webhook verification', 'Wonder Payments', array('response' => 403));
         }
 
+        // Collect every webhook key that could have signed this request: the active
+        // mode key first, then the other credential group. A webhook for an order
+        // created under the other mode may still arrive after the merchant toggled.
+        $webhook_keys = array();
         $webhook_key = !empty($this->webhook_public_key) ? $this->webhook_public_key : null;
-        $normalized_webhook_key = $this->normalize_webhook_public_key($webhook_key);
+        if ($webhook_key) {
+            $webhook_keys[] = $webhook_key;
+        }
+        $live_settings = get_option('woocommerce_wonder_payments_settings', array());
+        if (is_array($live_settings) && !empty($live_settings['webhook_public_key'])) {
+            $webhook_keys[] = $live_settings['webhook_public_key'];
+        }
+        $sandbox_binding = get_option('wonder_payments_sandbox_binding', array());
+        if (is_array($sandbox_binding) && !empty($sandbox_binding['webhook_public_key'])) {
+            $webhook_keys[] = $sandbox_binding['webhook_public_key'];
+        }
+        $webhook_keys = array_values(array_unique(array_filter($webhook_keys)));
+
         $logger->debug('Webhook public key info', array(
             'source' => 'wonderpay-gateway-for-woocommerce',
-            'webhook_public_key_len' => $webhook_key ? strlen($webhook_key) : 0,
-            'webhook_public_key_pem' => ($normalized_webhook_key && strpos($normalized_webhook_key, 'BEGIN PUBLIC KEY') !== false) ? 'yes' : 'no'
+            'webhook_verify_keys' => count($webhook_keys)
         ));
         $options = array(
                 'appid' => $this->app_id,
@@ -967,16 +979,28 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
         try {
             $body = $raw_data ? $raw_data : '';
             $signature_message = $sdk->generateSignatureMessage($credential, $nonce, $method, $uri, $body);
-            $public_key = $normalized_webhook_key ? openssl_pkey_get_public($normalized_webhook_key) : false;
-            if ($public_key) {
-                $decoded_signature = base64_decode($signature, true);
-                $verify_result = $decoded_signature ? openssl_verify($signature_message, $decoded_signature, $public_key, OPENSSL_ALGO_SHA256) : 0;
-                $is_valid = ($verify_result === 1);
-            } else {
-                $logger->error('Webhook verify failed: invalid public key', array(
-                    'source' => 'wonderpay-gateway-for-woocommerce'
+            $decoded_signature = base64_decode($signature, true);
+            if ($decoded_signature) {
+                foreach ($webhook_keys as $candidate_key) {
+                    $normalized_webhook_key = $this->normalize_webhook_public_key($candidate_key);
+                    if (!$normalized_webhook_key) {
+                        continue;
+                    }
+                    $public_key = openssl_pkey_get_public($normalized_webhook_key);
+                    if (!$public_key) {
+                        continue;
+                    }
+                    if (openssl_verify($signature_message, $decoded_signature, $public_key, OPENSSL_ALGO_SHA256) === 1) {
+                        $is_valid = true;
+                        break;
+                    }
+                }
+            }
+            if (!$is_valid) {
+                $logger->error('Webhook verify failed: no matching public key', array(
+                    'source' => 'wonderpay-gateway-for-woocommerce',
+                    'candidate_keys' => count($webhook_keys)
                 ));
-                $is_valid = false;
             }
         } catch (Throwable $e) {
             $logger->error('Webhook verify exception', array(

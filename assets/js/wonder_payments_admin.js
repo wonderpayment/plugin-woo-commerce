@@ -481,7 +481,7 @@
             .off('ajaxComplete.wonderPayments')
             .on('ajaxComplete.wonderPayments', function(event, xhr, settings) {
                 var action = getActionName(settings);
-                if ($.inArray(action, ['wonder_payments_save_selected_business', 'wonder_payments_save_settings', 'wonder_payments_generate_app_id', 'wonder_payments_clear_all']) !== -1) {
+                if ($.inArray(action, ['wonder_payments_save_selected_business', 'wonder_payments_save_settings', 'wonder_payments_sdk_create_app_id', 'wonder_payments_clear_all']) !== -1) {
                     setTimeout(reloadConfiguration, 500);
                 }
             });
@@ -518,6 +518,30 @@
 
         function isMenuLocked() {
             return $container.data('wonderPaymentsMenuLocked') === '1';
+        }
+
+        function getWizardMode() {
+            return $container.find('#activation-mode').attr('data-enabled') === 'true' ? 'sandbox' : 'live';
+        }
+
+        function setWizardMode(isSandbox) {
+            $container.find('#activation-mode')
+                .attr('data-enabled', isSandbox ? 'true' : 'false')
+                .find('.toggle-text')
+                .text(isSandbox ? 'Sandbox Mode' : 'Live Mode');
+            $container.find('#settings-sandbox').attr('data-enabled', isSandbox ? 'true' : 'false');
+        }
+
+        function showWizardFeedback(selector, message, type) {
+            var $target = $container.find(selector);
+            if (!message) {
+                $target.removeClass('is-error is-info').hide();
+                return;
+            }
+            $target.removeClass('is-error is-info')
+                .addClass(type === 'info' ? 'is-info' : 'is-error')
+                .text(message)
+                .show();
         }
 
         function clearSessionStorage() {
@@ -714,15 +738,18 @@
         }
 
         function generateKeyPairOnly(businessId, onSuccess, onError) {
+            var mode = getWizardMode();
             $container.find('#app-id-input').val('');
             $container.find('#create-app-id-btn').text(strings.create).prop('disabled', false);
 
             postAjax({
                 action: 'wonder_payments_generate_key_pair_only',
                 security: nonces.modal,
-                business_id: businessId
+                business_id: businessId,
+                mode: mode
             }).done(function(response) {
                 if (response && response.success) {
+                    showWizardFeedback('#activation-feedback', '', null);
                     var keyData = response.data && response.data.data ? response.data.data : (response.data || {});
                     fillActivationSettings(keyData);
 
@@ -732,10 +759,14 @@
                     return;
                 }
 
+                showWizardFeedback('#activation-feedback',
+                    response && response.data && response.data.message ? response.data.message : 'Failed to generate key pair.',
+                    'error');
                 if (typeof onError === 'function') {
                     onError(response);
                 }
             }).fail(function(xhr, status, error) {
+                showWizardFeedback('#activation-feedback', 'Failed to generate key pair: ' + (error || status), 'error');
                 if (typeof onError === 'function') {
                     onError(error || status);
                 }
@@ -743,13 +774,15 @@
         }
 
         function generateAppIdOnly(businessId, businessName, onSuccess, onError) {
+            var mode = getWizardMode();
             $container.find('#create-app-id-btn').text(strings.creating).prop('disabled', true);
 
             postAjax({
                 action: 'wonder_payments_sdk_create_app_id',
                 security: nonces.modal,
                 business_id: businessId,
-                business_name: businessName
+                business_name: businessName,
+                mode: mode
             }).done(function(response) {
                 if (response && response.success) {
                     var appId = response.app_id ||
@@ -763,6 +796,7 @@
                         (response.data && response.data.data && response.data.data.webhook_public_key) || '';
 
                     if (appId) {
+                        showWizardFeedback('#activation-feedback', '', null);
                         $container.find('#app-id-input').val(appId);
                         $container.find('#webhook-key-input').val(webhookKey);
                         $container.find('#create-app-id-btn').text(strings.created).prop('disabled', true);
@@ -775,11 +809,15 @@
                     }
                 }
 
+                showWizardFeedback('#activation-feedback',
+                    response && response.data && response.data.message ? response.data.message : 'Failed to create App ID.',
+                    'error');
                 $container.find('#create-app-id-btn').text(strings.create).prop('disabled', false);
                 if (typeof onError === 'function') {
                     onError(response);
                 }
             }).fail(function(xhr, status, error) {
+                showWizardFeedback('#activation-feedback', 'Failed to create App ID: ' + (error || status), 'error');
                 $container.find('#create-app-id-btn').text(strings.create).prop('disabled', false);
                 if (typeof onError === 'function') {
                     onError(error || status);
@@ -800,6 +838,18 @@
                 security: nonces.modal
             }).done(function(response) {
                 var settingsData = response && response.data && response.data.data ? response.data.data : response.data;
+                var binding = settingsData && settingsData.sandbox_binding ? settingsData.sandbox_binding : null;
+
+                // Fill the inputs with the credentials of the mode the wizard is
+                // currently editing.
+                if (getWizardMode() === 'sandbox') {
+                    if (binding && binding.app_id) {
+                        fillActivationSettings(binding);
+                    } else {
+                        generateKeyPairOnly(businessId);
+                    }
+                    return;
+                }
 
                 if (settingsData && settingsData.app_id) {
                     fillActivationSettings(settingsData);
@@ -818,18 +868,20 @@
                     action: 'wonder_payments_load_settings',
                     security: nonces.modal
                 }).done(function(response) {
-                    var settingsData = response && response.data && response.data.data ? response.data.data : response.data;
-                    settingsData = settingsData || {};
+                        var settingsData = response && response.data && response.data.data ? response.data.data : response.data;
+                        settingsData = settingsData || {};
 
-                    $container.find('#settings-title').val(settingsData.title || '');
-                    $container.find('#settings-description').val(settingsData.description || '');
-                    $container.find('#settings-due-date').val(settingsData.due_date || '30');
-                    $container.find('#settings-sandbox').attr('data-enabled', settingsData.sandbox_mode === '1' ? 'true' : 'false');
-                });
+                        $container.find('#settings-title').val(settingsData.title || '');
+                        $container.find('#settings-description').val(settingsData.description || '');
+                        $container.find('#settings-due-date').val(settingsData.due_date || '30');
+
+                        // Keep the wizard mode toggles in sync with the saved mode.
+                        setWizardMode(settingsData.sandbox_mode === '1');
+                    });
             }, 100);
         }
 
-        function saveSettings(skipRegen) {
+        function saveSettings() {
             var settingsData = {
                 title: $container.find('#settings-title').val(),
                 description: $container.find('#settings-description').val(),
@@ -841,6 +893,7 @@
                 webhook_public_key: $container.find('#webhook-key-input').val()
             };
 
+            showWizardFeedback('#settings-notice', '', null);
             $container.find('#save-settings-btn').text(strings.saving).prop('disabled', true);
 
             postAjax({
@@ -849,40 +902,25 @@
                 settings: settingsData
             }).done(function(response) {
                 if (response && response.success) {
-                    var envChanged = response.data && response.data.environment_changed;
+                    var sandboxNotice = response.data && response.data.sandbox_notice ? response.data.sandbox_notice : '';
 
-                    if (envChanged && !skipRegen) {
-                        var businessId = localStorage.getItem('wonder_selected_business_id') || localStorage.getItem('wonder_business_id');
-                        var businessName = localStorage.getItem('wonder_selected_business_name') || '';
-
-                        $container.find('#app-id-input, #private-key-input, #public-key-input, #webhook-key-input').val('');
-
-                        if (businessId) {
-                            generateKeyPairOnly(
-                                businessId,
-                                function() {
-                                    generateAppIdOnly(
-                                        businessId,
-                                        businessName,
-                                        function() {
-                                            saveSettings(true);
-                                        },
-                                        function() {
-                                            $container.find('#save-settings-btn').text(strings.save).prop('disabled', false);
-                                        }
-                                    );
-                                },
-                                function() {
-                                    $container.find('#save-settings-btn').text(strings.save).prop('disabled', false);
-                                }
-                            );
-                            return;
-                        }
+                    if (sandboxNotice) {
+                        // Sandbox is on but not activated yet: keep the wizard open
+                        // so the merchant can finish the sandbox activation.
+                        showWizardFeedback('#settings-notice', sandboxNotice, 'info');
+                        return;
                     }
 
                     closeWonderModal();
                     reloadConfiguration();
+                    return;
                 }
+
+                showWizardFeedback('#settings-notice',
+                    response && response.data && response.data.message ? response.data.message : 'Failed to save settings.',
+                    'error');
+            }).fail(function(xhr, status, error) {
+                showWizardFeedback('#settings-notice', 'Failed to save settings: ' + (error || status), 'error');
             }).always(function() {
                 $container.find('#save-settings-btn').text(strings.save).prop('disabled', false);
             });
@@ -1030,12 +1068,24 @@
             })
             .on('click.wonderPaymentsModal', '#save-settings-btn', function(event) {
                 event.preventDefault();
-                saveSettings(false);
+                saveSettings();
             })
             .on('click.wonderPaymentsModal', '#settings-sandbox', function(event) {
                 event.preventDefault();
                 var nextValue = $(this).attr('data-enabled') === 'true' ? 'false' : 'true';
-                $(this).attr('data-enabled', nextValue);
+                setWizardMode(nextValue === 'true');
+            })
+            .on('click.wonderPaymentsModal', '#activation-mode', function(event) {
+                event.preventDefault();
+                var nextMode = getWizardMode() === 'sandbox' ? 'live' : 'sandbox';
+                setWizardMode(nextMode === 'sandbox');
+
+                // Reload the activation inputs for the newly selected mode.
+                $container.find('#app-id-input, #private-key-input, #public-key-input, #webhook-key-input').val('');
+                $container.find('#create-app-id-btn').text(strings.create).prop('disabled', false);
+                setMenuLock(false);
+                showWizardFeedback('#activation-feedback', '', null);
+                loadActivationPage();
             });
 
         window.addEventListener('message', function(event) {
@@ -1047,6 +1097,10 @@
         $container.find('.content-panel').removeClass('active');
         $container.find('.menu-item').removeClass('active');
         setMenuLock(false);
+
+        // Initialize the wizard mode from the saved settings so both toggles
+        // reflect the runtime mode before any tab is opened.
+        setWizardMode(gatewayStatus.sandboxMode === '1');
 
         var accessToken = localStorage.getItem('wonder_access_token');
         var businessId = localStorage.getItem('wonder_business_id');

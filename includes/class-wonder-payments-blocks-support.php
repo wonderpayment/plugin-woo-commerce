@@ -36,12 +36,23 @@ class Wonderpay_Gateway_For_Woocommerce_Blocks_Support extends AbstractPaymentMe
     /**
      * Check if payment method is active for Blocks checkout.
      *
+     * The gateway swaps in the sandbox credentials when sandbox mode is on, so
+     * Blocks checkout must judge availability by the active mode's credentials.
+     *
      * @return bool
      */
     public function is_active() {
         $enabled = isset($this->settings['enabled']) ? $this->settings['enabled'] : 'no';
         $app_id = isset($this->settings['app_id']) ? $this->settings['app_id'] : '';
         $private_key = isset($this->settings['private_key']) ? $this->settings['private_key'] : '';
+
+        if (isset($this->settings['sandbox_mode']) && $this->settings['sandbox_mode'] === '1') {
+            $sandbox_binding = get_option('wonder_payments_sandbox_binding', array());
+            if (is_array($sandbox_binding)) {
+                $app_id = isset($sandbox_binding['app_id']) ? $sandbox_binding['app_id'] : '';
+                $private_key = isset($sandbox_binding['private_key']) ? $sandbox_binding['private_key'] : '';
+            }
+        }
 
         $active = $enabled === 'yes' && !empty($app_id) && !empty($private_key);
         $this->log(

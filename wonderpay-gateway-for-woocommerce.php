@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonder.app/
 Description: Accept Wonder Payments in WooCommerce with payment links, webhooks, order sync, and refunds.
-Version: 1.0.6
+Version: 1.0.7
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
@@ -335,6 +335,10 @@ function wonder_payments_init_gateway()
     require_once dirname(__FILE__) . '/includes/class-wonder-payments-gateway.php';
     require_once dirname(__FILE__) . '/includes/Wonder_Payments_Admin.php';
 
+    wonder_payments_migrate_legacy_staging_settings();
+
+    add_action('admin_notices', 'wonder_payments_render_rebind_notice');
+
     // Note.
     add_action('woocommerce_blocks_payment_method_type_registration', 'wonder_payments_register_blocks_support');
 
@@ -349,13 +353,175 @@ function wonder_payments_init_gateway()
     add_filter('plugin_action_links', 'wonder_payments_plugin_action_links', 10, 4);
     add_filter('plugin_action_links_woocommerce/woocommerce.php', 'wonder_payments_gateway_menu_links', 10, 4);
     add_action('admin_enqueue_scripts', 'wonder_payments_admin_scripts');
-    
+
     // Note.
     add_filter('woocommerce_gateway_title', 'wonder_payments_add_status_to_title', 10, 2);
-    
+
     // Note.
     add_filter('woocommerce_payment_gateways_setting_columns', 'wonder_payments_add_status_column');
     add_action('woocommerce_payment_gateways_setting_column_wonder_status', 'wonder_payments_render_status_column');
+}
+
+/**
+ * Migrate settings written by the legacy sandbox implementation.
+ *
+ * Versions up to 1.0.6 mapped "Sandbox mode" to the staging environment, which could
+ * pair an App ID with the wrong gateway and cause 403 "Invalid credential" errors.
+ * Sandbox is now a production-domain mode, so staging bindings must be re-created
+ * through the setup wizard.
+ *
+ * @return void
+ */
+function wonder_payments_migrate_legacy_staging_settings() {
+    $settings = get_option('woocommerce_wonder_payments_settings', array());
+    if (!is_array($settings) || !isset($settings['environment']) || $settings['environment'] !== 'stg') {
+        return;
+    }
+
+    $settings['environment'] = 'prod';
+    $settings['sandbox_mode'] = '0';
+    $settings['app_id'] = '';
+    $settings['private_key'] = '';
+    $settings['generated_public_key'] = '';
+    $settings['webhook_public_key'] = '';
+    update_option('woocommerce_wonder_payments_settings', $settings);
+
+    $legacy_mirror = get_option('wonder_payments_settings', array());
+    if (is_array($legacy_mirror) && isset($legacy_mirror['environment']) && $legacy_mirror['environment'] === 'stg') {
+        $legacy_mirror['environment'] = 'prod';
+        $legacy_mirror['sandbox_mode'] = '0';
+        $legacy_mirror['app_id'] = '';
+        $legacy_mirror['private_key'] = '';
+        $legacy_mirror['generated_public_key'] = '';
+        $legacy_mirror['webhook_public_key'] = '';
+        update_option('wonder_payments_settings', $legacy_mirror);
+    }
+
+    delete_option('wonder_payments_private_key');
+    delete_option('wonder_payments_public_key');
+    delete_option('wonder_payments_webhook_key');
+    delete_option('wonder_payments_pending_private_key');
+    delete_option('wonder_payments_pending_public_key');
+    delete_option('wonder_payments_pending_webhook_key');
+    delete_option('wonder_payments_pending_app_id');
+    delete_option('wonder_payments_pending_business_id');
+    delete_option('wonder_payments_sandbox_public_login');
+    delete_option('wonder_payments_sandbox_business');
+    delete_option('wonder_payments_app_id');
+
+    update_option('wonder_payments_show_rebind_notice', '1');
+}
+
+/**
+ * Show a one-time admin notice after legacy staging credentials were reset.
+ *
+ * @return void
+ */
+function wonder_payments_render_rebind_notice() {
+    if (get_option('wonder_payments_show_rebind_notice') !== '1') {
+        return;
+    }
+    if (!current_user_can('manage_woocommerce')) {
+        return;
+    }
+
+    $dismiss_url = wp_nonce_url(
+        add_query_arg('wonder_dismiss_rebind', '1', admin_url('admin.php?page=wc-settings&tab=checkout')),
+        'wonder_dismiss_rebind'
+    );
+
+    echo '<div class="notice notice-warning"><p>';
+    echo esc_html__('Wonder Payments: sandbox test mode has been updated. Previously saved test credentials were reset because they no longer match the current sandbox mechanism. Open the payment setup wizard and connect again before running sandbox payments.', 'wonder-payment-for-woocommerce');
+    echo ' <a href="' . esc_url($dismiss_url) . '">' . esc_html__('Dismiss', 'wonder-payment-for-woocommerce') . '</a>';
+    echo '</p></div>';
+}
+
+/**
+ * Handle the dismiss link of the sandbox migration notice.
+ *
+ * @return void
+ */
+function wonder_payments_dismiss_rebind_notice() {
+    if (!isset($_GET['wonder_dismiss_rebind']) || $_GET['wonder_dismiss_rebind'] !== '1') {
+        return;
+    }
+    if (!current_user_can('manage_woocommerce')) {
+        return;
+    }
+    check_admin_referer('wonder_dismiss_rebind');
+    delete_option('wonder_payments_show_rebind_notice');
+}
+add_action('admin_init', 'wonder_payments_dismiss_rebind_notice');
+
+/**
+ * Create or refresh the sandbox identity for the currently logged in merchant and
+ * store it in the sandbox binding option.
+ *
+ * The sandbox lives inside the production domain: the merchant's production login is
+ * exchanged for a sandbox identity, then a sandbox business is onboarded from the
+ * selected production business.
+ *
+ * @return array Updated sandbox binding.
+ * @throws Exception When login, onboarding or required options fail.
+ */
+function wonder_payments_create_sandbox_identity() {
+    $user_info = get_option('wonder_payments_user_info', array());
+    $reference_id = (is_array($user_info) && isset($user_info['data']['id'])) ? $user_info['data']['id'] : '';
+    $access_token = get_option('wonder_payments_user_access_token', '');
+
+    if (!$reference_id || !$access_token) {
+        throw new Exception('Please scan QR code to login first.');
+    }
+
+    $p_business_id = get_option('wonder_payments_business_id', '');
+    if (!$p_business_id) {
+        throw new Exception('No business selected. Please choose a business in the wizard first.');
+    }
+    $p_business_name = get_option('wonder_payments_business_name', '');
+
+    $platform_credentials = wonder_payments_get_platform_credentials('prod');
+    $sdk = new PaymentSDK(array(
+        'appid' => '',
+        'signaturePrivateKey' => '',
+        'webhookVerifyPublicKey' => '',
+        'environment' => 'prod',
+        'jwtToken' => $platform_credentials['jwt'],
+        'userAccessToken' => $access_token,
+        'language' => 'zh-CN'
+    ));
+
+    $public_login = $sdk->sandboxPublicLogin($reference_id);
+    $sandbox_user_id = isset($public_login['data']['user_id']) ? $public_login['data']['user_id'] : '';
+    $sandbox_user_token = isset($public_login['data']['access_token']) ? $public_login['data']['access_token'] : '';
+    if (!$sandbox_user_id || !$sandbox_user_token) {
+        throw new Exception('Sandbox login failed: unexpected response.');
+    }
+
+    $onboarding = $sdk->sandboxOnboardingBusiness($sandbox_user_id, $sandbox_user_token, $p_business_id, $p_business_name);
+    $sandbox_business_id = '';
+    if (is_array($onboarding) && isset($onboarding['data']['p_business_id'])) {
+        $sandbox_business_id = $onboarding['data']['p_business_id'];
+    } elseif (is_array($onboarding) && isset($onboarding['data']['business_id'])) {
+        $sandbox_business_id = $onboarding['data']['business_id'];
+    }
+    if (!$sandbox_business_id) {
+        throw new Exception('Sandbox onboarding failed: unexpected response.');
+    }
+
+    $binding = get_option('wonder_payments_sandbox_binding', array());
+    if (!is_array($binding)) {
+        $binding = array();
+    }
+    $binding['user_id'] = $sandbox_user_id;
+    $binding['access_token'] = $sandbox_user_token;
+    $binding['p_business_id'] = $p_business_id;
+    $binding['business_id'] = $sandbox_business_id;
+    $binding['business_name'] = (is_array($onboarding) && !empty($onboarding['data']['business_name']))
+        ? $onboarding['data']['business_name']
+        : $p_business_name;
+    update_option('wonder_payments_sandbox_binding', $binding);
+
+    return $binding;
 }
 
 /**
@@ -838,8 +1004,9 @@ function wonder_test_api_connection($app_id, $private_key, $webhook_key = '', $e
         );
     }
 
-    // Note.
-    $environment_value = $environment === 'yes' ? 'prod' : 'stg';
+    // The plugin always talks to the production gateway; sandbox is a
+    // production-domain mode, so credential tests never target staging.
+    $environment_value = 'prod';
 
     // Note.
     try {
@@ -965,6 +1132,7 @@ function wonder_payments_admin_scripts($hook)
             'enabled' => isset($settings['enabled']) ? $settings['enabled'] : 'no',
             'appId' => isset($settings['app_id']) ? $settings['app_id'] : '',
             'privateKey' => isset($settings['private_key']) ? $settings['private_key'] : '',
+            'sandboxMode' => isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0',
         ),
         'urls' => array(
             'pricing' => 'https://wonder.app/pricing',
@@ -1176,22 +1344,12 @@ function wonder_payments_sdk_create_qrcode() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
-        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        // Sandbox is a production-domain mode; the wizard never targets staging.
+        $environment = 'prod';
         $platformCredentials = wonder_payments_get_platform_credentials($environment);
         $jwtToken = $platformCredentials['jwt'];
-        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+        $language = 'zh-CN';
 
-        if ($sandbox_mode === '1') {
-            $sandboxLogin = get_option('wonder_payments_sandbox_public_login', array());
-            $sandboxBusiness = get_option('wonder_payments_sandbox_business', array());
-            if (isset($sandboxLogin['data']['access_token'])) {
-                $userAccessToken = $sandboxLogin['data']['access_token'];
-            }
-            if (isset($sandboxBusiness['data']['p_business_id'])) {
-                $businessId = $sandboxBusiness['data']['p_business_id'];
-            }
-        }
         // Note.
         $sdk = new PaymentSDK([
             'appid' => $appId,
@@ -1236,11 +1394,11 @@ function wonder_payments_sdk_qrcode_status() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
-        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        // Sandbox is a production-domain mode; the wizard never targets staging.
+        $environment = 'prod';
         $platformCredentials = wonder_payments_get_platform_credentials($environment);
         $jwtToken = $platformCredentials['jwt'];
-        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+        $language = 'zh-CN';
 
         // Note.
         $sdk = new PaymentSDK([
@@ -1277,11 +1435,11 @@ function wonder_payments_sdk_get_businesses() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
-        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        // Sandbox is a production-domain mode; the wizard never targets staging.
+        $environment = 'prod';
         $platformCredentials = wonder_payments_get_platform_credentials($environment);
         $jwtToken = $platformCredentials['jwt'];
-        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+        $language = 'zh-CN';
 
         // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
@@ -1347,11 +1505,11 @@ function wonder_payments_sdk_save_access_token() {
     update_option('wonder_payments_business_id', $businessId);
 
     $settings = get_option('woocommerce_wonder_payments_settings', array());
-    $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-    $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+    // Sandbox is a production-domain mode; the wizard never targets staging.
+    $environment = 'prod';
     $platformCredentials = wonder_payments_get_platform_credentials($environment);
     $jwtToken = $platformCredentials['jwt'];
-    $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+    $language = 'zh-CN';
 
     $sdk = new PaymentSDK([
         'appid' => '',
@@ -1391,11 +1549,11 @@ function wonder_payments_sdk_get_user_info() {
     }
 
     $settings = get_option('woocommerce_wonder_payments_settings', array());
-    $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-    $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+    // Sandbox is a production-domain mode; the wizard never targets staging.
+    $environment = 'prod';
     $platformCredentials = wonder_payments_get_platform_credentials($environment);
     $jwtToken = $platformCredentials['jwt'];
-    $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+    $language = 'zh-CN';
 
     try {
         $sdk = new PaymentSDK([
@@ -1434,26 +1592,16 @@ function wonder_payments_sdk_generate_app_id() {
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
         $appId = isset($settings['app_id']) ? $settings['app_id'] : '';
-        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        // Sandbox is a production-domain mode; the wizard never targets staging.
+        $environment = 'prod';
         $platformCredentials = wonder_payments_get_platform_credentials($environment);
         $jwtToken = $platformCredentials['jwt'];
-        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+        $language = 'zh-CN';
 
         // Note.
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
         // Note.
         $businessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
-        if ($sandbox_mode === '1') {
-            $sandboxLogin = get_option('wonder_payments_sandbox_public_login', array());
-            $sandboxBusiness = get_option('wonder_payments_sandbox_business', array());
-            if (isset($sandboxLogin['data']['access_token'])) {
-                $userAccessToken = $sandboxLogin['data']['access_token'];
-            }
-            if (isset($sandboxBusiness['data']['p_business_id'])) {
-                $businessId = $sandboxBusiness['data']['p_business_id'];
-            }
-        }
 
         if (empty($userAccessToken)) {
             wp_send_json_error(array('message' => 'User Access Token not found. Please scan QR code to login first.'));
@@ -1525,7 +1673,14 @@ function wonder_payments_check_connection() {
             'connected' => false,
             'app_id' => '',
             'business_id' => '',
-            'business_name' => ''
+            'business_name' => '',
+            'sandbox_mode' => isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0',
+            'sandbox' => array(
+                'connected' => false,
+                'app_id' => '',
+                'business_id' => '',
+                'business_name' => ''
+            )
         );
 
         if (!empty($appId)) {
@@ -1539,6 +1694,16 @@ function wonder_payments_check_connection() {
 
             $connectionInfo['business_id'] = $businessId;
             $connectionInfo['business_name'] = $businessName;
+        }
+
+        $sandbox_binding = get_option('wonder_payments_sandbox_binding', array());
+        if (is_array($sandbox_binding) && !empty($sandbox_binding['app_id']) && !empty($sandbox_binding['private_key'])) {
+            $connectionInfo['sandbox'] = array(
+                'connected' => true,
+                'app_id' => isset($sandbox_binding['app_id']) ? $sandbox_binding['app_id'] : '',
+                'business_id' => isset($sandbox_binding['business_id']) ? $sandbox_binding['business_id'] : '',
+                'business_name' => isset($sandbox_binding['business_name']) ? $sandbox_binding['business_name'] : ''
+            );
         }
 
         wp_send_json_success(array('data' => $connectionInfo));
@@ -1579,11 +1744,23 @@ function wonder_payments_get_config() {
     }
 
     $settings = get_option('woocommerce_wonder_payments_settings', array());
-    
+
+    // Report the credentials of the active mode so the status badge reflects
+    // sandbox bindings as well as live ones.
+    $app_id = isset($settings['app_id']) ? $settings['app_id'] : '';
+    $private_key = isset($settings['private_key']) ? $settings['private_key'] : '';
+    if (isset($settings['sandbox_mode']) && $settings['sandbox_mode'] === '1') {
+        $sandbox_binding = get_option('wonder_payments_sandbox_binding', array());
+        if (is_array($sandbox_binding)) {
+            $app_id = isset($sandbox_binding['app_id']) ? $sandbox_binding['app_id'] : '';
+            $private_key = isset($sandbox_binding['private_key']) ? $sandbox_binding['private_key'] : '';
+        }
+    }
+
     wp_send_json_success(array(
         'enabled' => isset($settings['enabled']) ? $settings['enabled'] : 'no',
-        'app_id' => isset($settings['app_id']) ? $settings['app_id'] : '',
-        'private_key' => isset($settings['private_key']) ? $settings['private_key'] : ''
+        'app_id' => $app_id,
+        'private_key' => $private_key
     ));
 }
 add_action('wp_ajax_wonder_payments_get_config', 'wonder_payments_get_config');
@@ -1607,8 +1784,15 @@ function wonder_payments_save_selected_business() {
         }
 
         // Note.
+        $previousBusinessId = get_option('wonder_payments_business_id', '');
         update_option('wonder_payments_business_id', $businessId);
         update_option('wonder_payments_business_name', $businessName);
+
+        // Sandbox identities and credentials are bound to the selected
+        // production business, so a different business invalidates them.
+        if ($previousBusinessId !== $businessId) {
+            delete_option('wonder_payments_sandbox_binding');
+        }
 
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
@@ -1634,8 +1818,25 @@ function wonder_payments_generate_key_pair_only() {
 
     try {
 
+        // The wizard can prepare credentials for the live mode or the sandbox mode.
+        $mode = isset($_POST['mode']) ? sanitize_key(wp_unslash($_POST['mode'])) : 'live';
+        $isSandbox = ($mode === 'sandbox');
+
+        $sandboxBinding = get_option('wonder_payments_sandbox_binding', array());
+        if (!is_array($sandboxBinding)) {
+            $sandboxBinding = array();
+        }
+
         // Note.
         $currentBusinessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
+        if ($isSandbox) {
+            if (empty($sandboxBinding['business_id'])) {
+                // Create the sandbox identity on demand so merchants can activate
+                // sandbox credentials straight from the wizard.
+                $sandboxBinding = wonder_payments_create_sandbox_identity();
+            }
+            $currentBusinessId = $sandboxBinding['business_id'];
+        }
 
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
@@ -1643,7 +1844,19 @@ function wonder_payments_generate_key_pair_only() {
         $savedBusinessId = get_option('wonder_payments_business_id', '');
 
         // Note.
-        if ($savedAppId && $savedBusinessId === $currentBusinessId) {
+        if ($isSandbox) {
+            if (!empty($sandboxBinding['app_id']) && $currentBusinessId === $sandboxBinding['business_id']) {
+                wp_send_json_success(array(
+                    'data' => array(
+                        'public_key' => isset($sandboxBinding['generated_public_key']) ? $sandboxBinding['generated_public_key'] : '',
+                        'private_key' => isset($sandboxBinding['private_key']) ? $sandboxBinding['private_key'] : '',
+                        'webhook_key' => isset($sandboxBinding['webhook_public_key']) ? $sandboxBinding['webhook_public_key'] : '',
+                        'app_id' => $sandboxBinding['app_id'],
+                        'business_name' => isset($sandboxBinding['business_name']) ? $sandboxBinding['business_name'] : ''
+                    )
+                ));
+            }
+        } elseif ($savedAppId && $savedBusinessId === $currentBusinessId) {
             $storedPrivateKey = isset($settings['private_key']) ? $settings['private_key'] : get_option('wonder_payments_private_key', '');
             $storedPublicKey = isset($settings['generated_public_key']) ? $settings['generated_public_key'] : get_option('wonder_payments_public_key', '');
             $storedWebhookKey = get_option('wonder_payments_webhook_key', '');
@@ -1659,16 +1872,24 @@ function wonder_payments_generate_key_pair_only() {
         }
 
         // Note.
-        if (empty($savedAppId)) {
+        if (!$isSandbox && empty($savedAppId)) {
             update_option('wonder_payments_webhook_key', '');
         }
 
         // Note.
-        $pendingBusinessId = get_option('wonder_payments_pending_business_id', '');
-        $pendingPrivateKey = get_option('wonder_payments_pending_private_key', '');
-        $pendingPublicKey = get_option('wonder_payments_pending_public_key', '');
-        $pendingWebhookKey = get_option('wonder_payments_pending_webhook_key', '');
-        $pendingAppId = get_option('wonder_payments_pending_app_id', '');
+        if ($isSandbox) {
+            $pendingBusinessId = isset($sandboxBinding['pending_business_id']) ? $sandboxBinding['pending_business_id'] : '';
+            $pendingPrivateKey = isset($sandboxBinding['pending_private_key']) ? $sandboxBinding['pending_private_key'] : '';
+            $pendingPublicKey = isset($sandboxBinding['pending_public_key']) ? $sandboxBinding['pending_public_key'] : '';
+            $pendingWebhookKey = isset($sandboxBinding['pending_webhook_key']) ? $sandboxBinding['pending_webhook_key'] : '';
+            $pendingAppId = isset($sandboxBinding['pending_app_id']) ? $sandboxBinding['pending_app_id'] : '';
+        } else {
+            $pendingBusinessId = get_option('wonder_payments_pending_business_id', '');
+            $pendingPrivateKey = get_option('wonder_payments_pending_private_key', '');
+            $pendingPublicKey = get_option('wonder_payments_pending_public_key', '');
+            $pendingWebhookKey = get_option('wonder_payments_pending_webhook_key', '');
+            $pendingAppId = get_option('wonder_payments_pending_app_id', '');
+        }
 
         if ($pendingBusinessId === $currentBusinessId && $pendingPrivateKey && $pendingPublicKey) {
             wp_send_json_success(array(
@@ -1692,10 +1913,18 @@ function wonder_payments_generate_key_pair_only() {
         $publicKey = $keyPair['public_key'];
 
         // Note.
-        update_option('wonder_payments_pending_private_key', $privateKey);
-        update_option('wonder_payments_pending_public_key', $publicKey);
-        update_option('wonder_payments_pending_webhook_key', '');
-        update_option('wonder_payments_pending_business_id', $currentBusinessId);
+        if ($isSandbox) {
+            $sandboxBinding['pending_private_key'] = $privateKey;
+            $sandboxBinding['pending_public_key'] = $publicKey;
+            $sandboxBinding['pending_webhook_key'] = '';
+            $sandboxBinding['pending_business_id'] = $currentBusinessId;
+            update_option('wonder_payments_sandbox_binding', $sandboxBinding);
+        } else {
+            update_option('wonder_payments_pending_private_key', $privateKey);
+            update_option('wonder_payments_pending_public_key', $publicKey);
+            update_option('wonder_payments_pending_webhook_key', '');
+            update_option('wonder_payments_pending_business_id', $currentBusinessId);
+        }
 
         $appIdToReturn = '';
 
@@ -1725,14 +1954,22 @@ function wonder_payments_sdk_create_app_id() {
 
     try {
 
-        $businessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
+        $mode = isset($_POST['mode']) ? sanitize_key(wp_unslash($_POST['mode'])) : 'live';
+        $isSandbox = ($mode === 'sandbox');
 
-        if (empty($businessId)) {
-            wp_send_json_error(array('message' => 'Business ID is required'));
+        $sandboxBinding = get_option('wonder_payments_sandbox_binding', array());
+        if (!is_array($sandboxBinding)) {
+            $sandboxBinding = array();
         }
 
+        $businessId = isset($_POST['business_id']) ? sanitize_text_field(wp_unslash($_POST['business_id'])) : '';
+
         // Note.
-        $publicKey = get_option('wonder_payments_pending_public_key', '');
+        if ($isSandbox) {
+            $publicKey = isset($sandboxBinding['pending_public_key']) ? $sandboxBinding['pending_public_key'] : '';
+        } else {
+            $publicKey = get_option('wonder_payments_pending_public_key', '');
+        }
         if (empty($publicKey)) {
             $publicKey = get_option('wonder_payments_public_key', '');
         }
@@ -1745,22 +1982,24 @@ function wonder_payments_sdk_create_app_id() {
         $userAccessToken = get_option('wonder_payments_user_access_token', '');
 
         // Note.
-        $settings = get_option('woocommerce_wonder_payments_settings', array());
-        $sandbox_mode = isset($settings['sandbox_mode']) ? $settings['sandbox_mode'] : '0';
-        $environment = ($sandbox_mode === '1') ? 'stg' : 'prod';
+        // Sandbox is a production-domain mode; the wizard never targets staging.
+        $environment = 'prod';
         $platformCredentials = wonder_payments_get_platform_credentials($environment);
         $jwtToken = $platformCredentials['jwt'];
-        $language = ($environment === 'prod') ? 'zh-CN' : 'en-US';
+        $language = 'zh-CN';
 
-        if ($sandbox_mode === '1') {
-            $sandboxLogin = get_option('wonder_payments_sandbox_public_login', array());
-            $sandboxBusiness = get_option('wonder_payments_sandbox_business', array());
-            if (isset($sandboxLogin['data']['access_token'])) {
-                $userAccessToken = $sandboxLogin['data']['access_token'];
+        if ($isSandbox) {
+            if (empty($sandboxBinding['access_token']) || empty($sandboxBinding['business_id'])) {
+                // Create the sandbox identity on demand so merchants can activate
+                // sandbox credentials straight from the wizard.
+                $sandboxBinding = wonder_payments_create_sandbox_identity();
             }
-            if (isset($sandboxBusiness['data']['p_business_id'])) {
-                $businessId = $sandboxBusiness['data']['p_business_id'];
-            }
+            $userAccessToken = $sandboxBinding['access_token'];
+            $businessId = $sandboxBinding['business_id'];
+        }
+
+        if (empty($businessId)) {
+            wp_send_json_error(array('message' => 'Business ID is required'));
         }
 
         if (empty($userAccessToken)) {
@@ -1808,9 +2047,17 @@ function wonder_payments_sdk_create_app_id() {
 
         // Note.
         if (!empty($newAppId)) {
-            update_option('wonder_payments_pending_app_id', $newAppId);
-            if (!empty($webhookPrivateKey)) {
-                update_option('wonder_payments_pending_webhook_key', $webhookPrivateKey);
+            if ($isSandbox) {
+                $sandboxBinding['pending_app_id'] = $newAppId;
+                if (!empty($webhookPrivateKey)) {
+                    $sandboxBinding['pending_webhook_key'] = $webhookPrivateKey;
+                }
+                update_option('wonder_payments_sandbox_binding', $sandboxBinding);
+            } else {
+                update_option('wonder_payments_pending_app_id', $newAppId);
+                if (!empty($webhookPrivateKey)) {
+                    update_option('wonder_payments_pending_webhook_key', $webhookPrivateKey);
+                }
             }
         }
 
@@ -1850,6 +2097,7 @@ function wonder_payments_clear_all() {
         delete_option('wonder_payments_pending_webhook_key');
         delete_option('wonder_payments_pending_app_id');
         delete_option('wonder_payments_pending_business_id');
+        delete_option('wonder_payments_sandbox_binding');
 
         // Note.
         $settings = get_option('woocommerce_wonder_payments_settings', array());
@@ -1884,6 +2132,21 @@ function wonder_payments_load_settings() {
             $wcSettings = get_option('wonder_payments_settings', array());
         }
 
+        // The wizard activation page also needs the sandbox credentials when the
+        // merchant prepares the sandbox mode, so report the binding alongside
+        // the live settings.
+        $sandbox_binding = get_option('wonder_payments_sandbox_binding', array());
+        if (is_array($sandbox_binding) && !empty($sandbox_binding)) {
+            $wcSettings['sandbox_binding'] = array(
+                'app_id' => isset($sandbox_binding['app_id']) ? $sandbox_binding['app_id'] : '',
+                'private_key' => isset($sandbox_binding['private_key']) ? $sandbox_binding['private_key'] : '',
+                'generated_public_key' => isset($sandbox_binding['generated_public_key']) ? $sandbox_binding['generated_public_key'] : '',
+                'webhook_public_key' => isset($sandbox_binding['webhook_public_key']) ? $sandbox_binding['webhook_public_key'] : '',
+                'business_id' => isset($sandbox_binding['business_id']) ? $sandbox_binding['business_id'] : '',
+                'business_name' => isset($sandbox_binding['business_name']) ? $sandbox_binding['business_name'] : ''
+            );
+        }
+
         wp_send_json_success(array('data' => $wcSettings));
     } catch (Exception $e) {
         wp_send_json_error(array('message' => 'Failed to load settings: ' . $e->getMessage()));
@@ -1906,80 +2169,115 @@ function wonder_payments_save_settings() {
         // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Settings array sanitized per-field below.
         $settings = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : array();
 
-    // Note.
-    $title = isset($settings['title']) ? sanitize_text_field($settings['title']) : '';
-    $description = isset($settings['description']) ? sanitize_textarea_field($settings['description']) : '';
-    $sandboxMode = isset($settings['sandbox_mode']) ? ($settings['sandbox_mode'] === '1' ? '1' : '0') : '0';
-    $dueDate = isset($settings['due_date']) ? intval($settings['due_date']) : 30;
-    $appId = isset($settings['app_id']) ? sanitize_text_field($settings['app_id']) : '';
-    $privateKey = isset($settings['private_key']) ? sanitize_textarea_field($settings['private_key']) : '';
-    $publicKey = isset($settings['generated_public_key']) ? sanitize_textarea_field($settings['generated_public_key']) : '';
-    $webhookPublicKey = isset($settings['webhook_public_key']) ? sanitize_textarea_field($settings['webhook_public_key']) : '';
+        $title = isset($settings['title']) ? sanitize_text_field($settings['title']) : '';
+        $description = isset($settings['description']) ? sanitize_textarea_field($settings['description']) : '';
+        $sandboxMode = isset($settings['sandbox_mode']) ? ($settings['sandbox_mode'] === '1' ? '1' : '0') : '0';
+        $dueDate = isset($settings['due_date']) ? intval($settings['due_date']) : 30;
+        $appId = isset($settings['app_id']) ? sanitize_text_field($settings['app_id']) : '';
+        $privateKey = isset($settings['private_key']) ? sanitize_textarea_field($settings['private_key']) : '';
+        $publicKey = isset($settings['generated_public_key']) ? sanitize_textarea_field($settings['generated_public_key']) : '';
+        $webhookPublicKey = isset($settings['webhook_public_key']) ? sanitize_textarea_field($settings['webhook_public_key']) : '';
 
-        // Note.
         if ($dueDate < 1) {
             $dueDate = 1;
         } elseif ($dueDate > 365) {
             $dueDate = 365;
         }
 
-        // Note.
-    $environment = ($sandboxMode === '1') ? 'stg' : 'prod';
+        // The Wonder sandbox runs inside the production domain, so the gateway
+        // environment never changes between live and sandbox mode.
+        $environment = 'prod';
 
-    // Note.
-    $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
-    $previousEnvironment = isset($wcSettings['environment']) ? $wcSettings['environment'] : '';
-    $environmentChanged = ($previousEnvironment && $previousEnvironment !== $environment);
-    if ($environmentChanged) {
-        // Environment changed: clear credentials so user must regenerate matching App ID/keys.
-        $appId = '';
-        $privateKey = '';
-        $publicKey = '';
-        $webhookPublicKey = '';
+        $wcSettings = get_option('woocommerce_wonder_payments_settings', array());
+        if (!is_array($wcSettings)) {
+            $wcSettings = array();
+        }
 
-        $wcSettings['app_id'] = '';
-        $wcSettings['private_key'] = '';
-        $wcSettings['generated_public_key'] = '';
-        $wcSettings['webhook_public_key'] = '';
+        $sandboxBinding = get_option('wonder_payments_sandbox_binding', array());
+        if (!is_array($sandboxBinding)) {
+            $sandboxBinding = array();
+        }
 
-        delete_option('wonder_payments_private_key');
-        delete_option('wonder_payments_public_key');
-        delete_option('wonder_payments_webhook_key');
-        delete_option('wonder_payments_pending_private_key');
-        delete_option('wonder_payments_pending_public_key');
-        delete_option('wonder_payments_pending_webhook_key');
-        delete_option('wonder_payments_pending_app_id');
-        delete_option('wonder_payments_pending_business_id');
-    }
+        $response = array(
+            'message' => 'Settings saved successfully',
+            'sandbox_mode' => $sandboxMode
+        );
 
-    // Note.
-    $existingAppId = isset($wcSettings['app_id']) ? $wcSettings['app_id'] : '';
-    $existingPrivateKey = isset($wcSettings['private_key']) ? $wcSettings['private_key'] : '';
+        // Saving sandbox mode requires a sandbox identity for the logged in
+        // merchant. Fail loudly instead of saving mismatched credentials, which
+        // is what caused the historical 403 "Invalid credential" errors.
+        if ($sandboxMode === '1' && empty($sandboxBinding['business_id'])) {
+            try {
+                $sandboxBinding = wonder_payments_create_sandbox_identity();
+            } catch (Exception $identityException) {
+                wp_send_json_error(array(
+                    'message' => 'Sandbox mode could not be enabled: ' . $identityException->getMessage() . ' Please log in and select a business in the setup wizard, then try again.'
+                ));
+            }
+        }
 
-    if ($appId !== '' && $privateKey === '' && $existingPrivateKey === '') {
-        wp_send_json_error(array('message' => 'Private Key is required when saving App ID.'));
-    }
+        // Live and sandbox keep separate credential sets; saving one mode never
+        // touches the credentials of the other mode.
+        if ($sandboxMode === '1') {
+            $existingAppId = isset($sandboxBinding['app_id']) ? $sandboxBinding['app_id'] : '';
+            $existingPrivateKey = isset($sandboxBinding['private_key']) ? $sandboxBinding['private_key'] : '';
 
-    if ($privateKey !== '' && $appId === '' && $existingAppId === '') {
-        wp_send_json_error(array('message' => 'App ID is required when saving Private Key.'));
-    }
+            if ($appId !== '' && $privateKey === '' && $existingPrivateKey === '') {
+                wp_send_json_error(array('message' => 'Private Key is required when saving App ID.'));
+            }
 
-    if ($appId !== '' && $existingAppId !== '' && $appId !== $existingAppId && $privateKey === '' && $existingPrivateKey !== '') {
-        wp_send_json_error(array('message' => 'App ID changed. Please save a matching Private Key.'));
-    }
+            if ($privateKey !== '' && $appId === '' && $existingAppId === '') {
+                wp_send_json_error(array('message' => 'App ID is required when saving Private Key.'));
+            }
 
-        // Note.
-        $wcSettings['title'] = $title;
-        $wcSettings['description'] = $description;
-        $wcSettings['sandbox_mode'] = $sandboxMode;
-        $wcSettings['environment'] = $environment;
-        $wcSettings['due_date'] = $dueDate;
-        if ($environmentChanged) {
-            $wcSettings['app_id'] = '';
-            $wcSettings['private_key'] = '';
-            $wcSettings['generated_public_key'] = '';
-            $wcSettings['webhook_public_key'] = '';
+            if ($appId !== '' && $existingAppId !== '' && $appId !== $existingAppId && $privateKey === '' && $existingPrivateKey !== '') {
+                wp_send_json_error(array('message' => 'App ID changed. Please save a matching Private Key.'));
+            }
+
+            if ($appId !== '') {
+                $sandboxBinding['app_id'] = $appId;
+            }
+            if ($privateKey !== '') {
+                $sandboxBinding['private_key'] = $privateKey;
+            }
+            if ($publicKey !== '') {
+                $sandboxBinding['generated_public_key'] = $publicKey;
+            }
+            if ($webhookPublicKey !== '') {
+                $sandboxBinding['webhook_public_key'] = $webhookPublicKey;
+            } elseif ($appId === '') {
+                $sandboxBinding['webhook_public_key'] = '';
+            }
+
+            // The pending sandbox wizard keys were consumed by this save.
+            unset(
+                $sandboxBinding['pending_private_key'],
+                $sandboxBinding['pending_public_key'],
+                $sandboxBinding['pending_webhook_key'],
+                $sandboxBinding['pending_app_id'],
+                $sandboxBinding['pending_business_id']
+            );
+            update_option('wonder_payments_sandbox_binding', $sandboxBinding);
+
+            if (empty($sandboxBinding['app_id']) || empty($sandboxBinding['private_key'])) {
+                $response['sandbox_notice'] = 'Sandbox mode is enabled, but no sandbox App ID is saved yet. Open the "Activation AppID" tab, switch to sandbox mode, and create one before running sandbox payments.';
+            }
         } else {
+            $existingAppId = isset($wcSettings['app_id']) ? $wcSettings['app_id'] : '';
+            $existingPrivateKey = isset($wcSettings['private_key']) ? $wcSettings['private_key'] : '';
+
+            if ($appId !== '' && $privateKey === '' && $existingPrivateKey === '') {
+                wp_send_json_error(array('message' => 'Private Key is required when saving App ID.'));
+            }
+
+            if ($privateKey !== '' && $appId === '' && $existingAppId === '') {
+                wp_send_json_error(array('message' => 'App ID is required when saving Private Key.'));
+            }
+
+            if ($appId !== '' && $existingAppId !== '' && $appId !== $existingAppId && $privateKey === '' && $existingPrivateKey !== '') {
+                wp_send_json_error(array('message' => 'App ID changed. Please save a matching Private Key.'));
+            }
+
             if ($appId !== '') {
                 $wcSettings['app_id'] = $appId;
             }
@@ -1996,6 +2294,12 @@ function wonder_payments_save_settings() {
             }
         }
 
+        $wcSettings['title'] = $title;
+        $wcSettings['description'] = $description;
+        $wcSettings['sandbox_mode'] = $sandboxMode;
+        $wcSettings['environment'] = $environment;
+        $wcSettings['due_date'] = $dueDate;
+
         // Note.
         update_option('wonder_payments_settings', $wcSettings);
 
@@ -2011,112 +2315,9 @@ function wonder_payments_save_settings() {
 
         // Note.
         $savedSettings = get_option('woocommerce_wonder_payments_settings', array());
-        $verificationPassed = true;
-
-        if (!isset($savedSettings['title']) || $savedSettings['title'] !== $title) {
-            $verificationPassed = false;
-        }
-
-        if (!isset($savedSettings['description']) || $savedSettings['description'] !== $description) {
-            $verificationPassed = false;
-        }
-
         if (!isset($savedSettings['environment']) || $savedSettings['environment'] !== $environment) {
-            $verificationPassed = false;
-        }
-
-        if ($verificationPassed) {
-            // Note.
-            $optionName = 'woocommerce_wonder_payments_settings';
-            $dbResult = get_option($optionName);
-
-            if ($dbResult) {
-
-                // Note.
-                $unserialized = maybe_unserialize($dbResult);
-                $logger = wonder_payments_get_logger();
-                if (is_array($unserialized)) {
-                    $logger->debug('DB Verification: Unserialized successfully', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
-                    $logger->debug('DB Verification: Keys = ' . implode(', ', array_keys($unserialized)), array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
-                } else {
-                    $logger->warning('DB Verification WARNING: Failed to unserialize', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
-                }
-            } else {
-                $logger->error('DB Verification ERROR: Record NOT found in wp_options table!', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
-            }
-        } else {
-            $logger->error('Settings verification failed!', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
-        }
-
-        $sandboxDebug = array();
-        if ($sandboxMode === '1') {
-            $userInfo = get_option('wonder_payments_user_info', array());
-            $referenceId = '';
-            if (is_array($userInfo) && isset($userInfo['data']['id'])) {
-                $referenceId = $userInfo['data']['id'];
-            }
-            $accessToken = get_option('wonder_payments_user_access_token', '');
-
-            if ($referenceId && $accessToken) {
-                $platformCredentials = wonder_payments_get_platform_credentials('stg');
-                $jwtToken = $platformCredentials['jwt'];
-                $sdk = new PaymentSDK([
-                    'appid' => '',
-                    'signaturePrivateKey' => '',
-                    'webhookVerifyPublicKey' => '',
-                    'environment' => 'stg',
-                    'jwtToken' => $jwtToken,
-                    'userAccessToken' => $accessToken,
-                    'language' => 'zh-CN'
-                ]);
-
-                $sandboxDebug['public_login'] = $sdk->sandboxPublicLogin($referenceId);
-                update_option('wonder_payments_sandbox_public_login', $sandboxDebug['public_login']);
-
-                $sandboxUserId = '';
-                $sandboxUserToken = '';
-                if (isset($sandboxDebug['public_login']['data']['user_id'])) {
-                    $sandboxUserId = $sandboxDebug['public_login']['data']['user_id'];
-                }
-                if (isset($sandboxDebug['public_login']['data']['access_token'])) {
-                    $sandboxUserToken = $sandboxDebug['public_login']['data']['access_token'];
-                }
-
-                $pBusinessId = get_option('wonder_payments_business_id', '');
-                $sandboxBusinessName = get_option('wonder_payments_business_name', '');
-
-                if ($sandboxUserId && $sandboxUserToken && $pBusinessId) {
-                    $sandboxDebug['sandbox_business'] = $sdk->sandboxOnboardingBusiness(
-                        $sandboxUserId,
-                        $sandboxUserToken,
-                        $pBusinessId,
-                        $sandboxBusinessName
-                    );
-                    update_option('wonder_payments_sandbox_business', $sandboxDebug['sandbox_business']);
-                } else {
-                    $sandboxDebug['sandbox_business'] = array(
-                        'status' => 0,
-                        'body' => array(
-                            'message' => 'Missing sandbox_user_id, sandbox_user_token, or p_business_id'
-                        )
-                    );
-                }
-            } else {
-                $sandboxDebug['public_login'] = array(
-                    'status' => 0,
-                    'body' => array(
-                        'message' => 'Missing reference_id or access_token'
-                    )
-                );
-            }
-        }
-
-        $response = array(
-            'message' => 'Settings saved successfully',
-            'environment_changed' => $environmentChanged ? true : false
-        );
-        if (!empty($sandboxDebug)) {
-            $response['sandbox_debug'] = $sandboxDebug;
+            $logger = wonder_payments_get_logger();
+            $logger->error('Settings verification failed: environment mismatch after save.', array( 'source' => 'wonderpay-gateway-for-woocommerce' ));
         }
 
         wp_send_json_success($response);
