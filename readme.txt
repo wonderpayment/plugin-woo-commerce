@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.8
+Stable tag: 1.0.9
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -61,6 +61,11 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.9 =
+* New "Enable Gateway" switch in the setup wizard's Settings step (defaults to on): finishing the wizard now activates the gateway right away, instead of requiring a second trip to the gateway settings page that newer WooCommerce interfaces no longer expose
+* Clicking the gateway's enable toggle on the payments list no longer opens the setup wizard — it simply enables or disables the gateway, as expected
+* The payments settings page now reloads automatically after saving in the wizard, so the gateway's enabled state is immediately reflected
 
 = 1.0.8 =
 * Restore the correct sandbox routing: sandbox payments run against the staging gateway, where the sandbox business and its App ID live, instead of the production gateway (1.0.7 pointed them at the wrong domain and sandbox activation always failed)

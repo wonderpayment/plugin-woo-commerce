@@ -400,7 +400,15 @@
 
         $(document)
             .off('click.wonderPaymentsManage')
-            .on('click.wonderPaymentsManage', '.wonder-payments-manage-link, [data-gateway-id="wonder_payments"], a[href*="section=wonder_payments"]', openWonderPaymentsModal);
+            .on('click.wonderPaymentsManage', '.wonder-payments-manage-link, [data-gateway-id="wonder_payments"], a[href*="section=wonder_payments"]', function(event) {
+                // The gateway enable toggle stays a pure toggle: WooCommerce
+                // enables/disables the gateway itself when it is clicked, so
+                // it must never open the configuration wizard.
+                if ($(event.target).closest('.woocommerce-input-toggle').length) {
+                    return;
+                }
+                openWonderPaymentsModal(event);
+            });
 
         $(document)
             .off('click.wonderPaymentsEllipsis')
@@ -877,6 +885,11 @@
 
                         // Keep the wizard mode toggles in sync with the saved mode.
                         setWizardMode(settingsData.sandbox_mode === '1');
+
+                        // The gateway enable switch reflects the saved state and
+                        // defaults to enabled, so finishing the wizard activates
+                        // the gateway without a second trip to the settings page.
+                        $container.find('#settings-enabled').attr('data-enabled', settingsData.enabled === 'no' ? 'false' : 'true');
                     });
             }, 100);
         }
@@ -886,6 +899,7 @@
                 title: $container.find('#settings-title').val(),
                 description: $container.find('#settings-description').val(),
                 sandbox_mode: $container.find('#settings-sandbox').attr('data-enabled') === 'true' ? '1' : '0',
+                enabled: $container.find('#settings-enabled').attr('data-enabled') === 'true' ? 'yes' : 'no',
                 due_date: $container.find('#settings-due-date').val(),
                 app_id: $container.find('#app-id-input').val(),
                 private_key: $container.find('#private-key-input').val(),
@@ -912,7 +926,10 @@
                     }
 
                     closeWonderModal();
-                    reloadConfiguration();
+                    // The gateway row on the payments list is server-rendered,
+                    // so the page must reload for the new enabled/credential
+                    // state to show up there.
+                    window.location.reload();
                     return;
                 }
 
@@ -1094,6 +1111,11 @@
                 setMenuLock(false);
                 showWizardFeedback('#activation-feedback', '', null);
                 loadActivationPage();
+            })
+            .on('click.wonderPaymentsModal', '#settings-enabled', function(event) {
+                event.preventDefault();
+                var nextValue = $(this).attr('data-enabled') === 'true' ? 'false' : 'true';
+                $(this).attr('data-enabled', nextValue);
             });
 
         window.addEventListener('message', function(event) {

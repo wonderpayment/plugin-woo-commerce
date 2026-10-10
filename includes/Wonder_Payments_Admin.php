@@ -193,6 +193,18 @@ class Wonder_Payments_Admin {
                             <div class="form-hint">Please turn off sandbox mode before you go live</div>
                         </div>
 
+                        <!-- Enable Gateway section -->
+                        <div class="form-group">
+                            <label class="form-label">Enable Gateway</label>
+                            <div class="toggle-switch">
+                                <div id="settings-enabled" class="toggle-button" data-enabled="true">
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-text">Enable Wonder Payments</span>
+                                </div>
+                            </div>
+                            <div class="form-hint">Turn on to show Wonder Payments at checkout</div>
+                        </div>
+
                         <!-- Payment Due Days section -->
                         <div class="form-group">
                             <label class="form-label">Payment Due Days</label>

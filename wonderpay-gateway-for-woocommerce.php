@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonder.app/
 Description: Accept Wonder Payments in WooCommerce with payment links, webhooks, order sync, and refunds.
-Version: 1.0.8
+Version: 1.0.9
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
@@ -1930,6 +1930,11 @@ function wonder_payments_save_settings() {
         $title = isset($settings['title']) ? sanitize_text_field($settings['title']) : '';
         $description = isset($settings['description']) ? sanitize_textarea_field($settings['description']) : '';
         $sandboxMode = isset($settings['sandbox_mode']) ? ($settings['sandbox_mode'] === '1' ? '1' : '0') : '0';
+        // The wizard save is the merchant's primary enable path: the switch
+        // defaults to enabled, so finishing the wizard activates the gateway
+        // without a second trip to the gateway settings page (which newer
+        // WooCommerce UIs no longer expose).
+        $enabled = (isset($settings['enabled']) && $settings['enabled'] === 'no') ? 'no' : 'yes';
         $dueDate = isset($settings['due_date']) ? intval($settings['due_date']) : 30;
         $appId = isset($settings['app_id']) ? sanitize_text_field($settings['app_id']) : '';
         $privateKey = isset($settings['private_key']) ? sanitize_textarea_field($settings['private_key']) : '';
@@ -2081,6 +2086,7 @@ function wonder_payments_save_settings() {
         $wcSettings['title'] = $title;
         $wcSettings['description'] = $description;
         $wcSettings['sandbox_mode'] = $sandboxMode;
+        $wcSettings['enabled'] = $enabled;
         $wcSettings['environment'] = $environment;
         $wcSettings['due_date'] = $dueDate;
 
