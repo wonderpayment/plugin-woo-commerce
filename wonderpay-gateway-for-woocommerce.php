@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonder.app/
 Description: Accept Wonder Payments in WooCommerce with payment links, webhooks, order sync, and refunds.
-Version: 1.0.9
+Version: 1.0.10
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
@@ -108,6 +108,53 @@ function wonder_payments_sanitize_token_value($value, $pattern = '/[^A-Za-z0-9_\
     $value = wp_unslash($value);
     $value = sanitize_text_field($value);
     return (string) preg_replace($pattern, '', $value);
+}
+
+/**
+ * Full list of payment method identifiers the gateway accepts inside
+ * payment_method_option.online.show / .hide (the payment method filter on
+ * payment links). Mirrors the Wonder payment_method_option enum.
+ *
+ * @return array Valid method identifiers.
+ */
+function wonder_payments_supported_payment_methods() {
+    return array(
+        'cup',
+        'unionpay_wallet',
+        'fps',
+        'amex',
+        'visa',
+        'mastercard',
+        'sg_qr',
+        'jcb',
+        'discover',
+        'diners',
+        'wechat',
+        'alipay',
+        'alipay_hk',
+        'payme',
+        'octopus',
+    );
+}
+
+/**
+ * Curated subset of payment methods offered in the wizard UI, ordered for the
+ * primary markets (global cards and wallets first, Hong Kong locals after).
+ *
+ * @return array identifier => display label.
+ */
+function wonder_payments_curated_payment_methods() {
+    return array(
+        'visa' => 'Visa',
+        'mastercard' => 'Mastercard',
+        'amex' => 'American Express',
+        'alipay' => 'Alipay',
+        'wechat' => 'WeChat Pay',
+        'unionpay_wallet' => 'UnionPay',
+        'fps' => 'Hong Kong FPS',
+        'payme' => 'PayMe',
+        'octopus' => 'Octopus',
+    );
 }
 
 /**
@@ -1941,6 +1988,31 @@ function wonder_payments_save_settings() {
         $publicKey = isset($settings['generated_public_key']) ? sanitize_textarea_field($settings['generated_public_key']) : '';
         $webhookPublicKey = isset($settings['webhook_public_key']) ? sanitize_textarea_field($settings['webhook_public_key']) : '';
 
+        // Payment method filter: the wizard offers two ways to constrain what
+        // the payment link shows — show-only or hide-selected. Values come
+        // from the gateway's payment_method_option.online enum.
+        $pmMode = isset($settings['payment_method_mode']) ? sanitize_key($settings['payment_method_mode']) : 'none';
+        if (!in_array($pmMode, array('none', 'show', 'hide'), true)) {
+            $pmMode = 'none';
+        }
+        $pmMethods = array();
+        if ($pmMode !== 'none' && isset($settings['payment_methods']) && is_array($settings['payment_methods'])) {
+            $allowedMethods = wonder_payments_supported_payment_methods();
+            foreach ($settings['payment_methods'] as $method) {
+                $method = sanitize_key($method);
+                if (in_array($method, $allowedMethods, true)) {
+                    $pmMethods[] = $method;
+                }
+            }
+            // An empty selection would filter out every method on the payment
+            // link, so fall back to no restriction instead.
+            if (empty($pmMethods)) {
+                $pmMode = 'none';
+            }
+        } else {
+            $pmMode = 'none';
+        }
+
         if ($dueDate < 1) {
             $dueDate = 1;
         } elseif ($dueDate > 365) {
@@ -2087,6 +2159,8 @@ function wonder_payments_save_settings() {
         $wcSettings['description'] = $description;
         $wcSettings['sandbox_mode'] = $sandboxMode;
         $wcSettings['enabled'] = $enabled;
+        $wcSettings['payment_method_mode'] = $pmMode;
+        $wcSettings['payment_methods'] = $pmMethods;
         $wcSettings['environment'] = $environment;
         $wcSettings['due_date'] = $dueDate;
 

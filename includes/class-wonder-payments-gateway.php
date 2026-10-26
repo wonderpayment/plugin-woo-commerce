@@ -548,6 +548,19 @@ class Wonderpay_Gateway_For_Woocommerce_Gateway extends WC_Payment_Gateway
                     )
             );
 
+            // Payment method filter: the wizard can constrain which methods the
+            // payment link shows (show-only or hide-selected, mutually exclusive
+            // on the gateway side). Omit the field entirely when unrestricted.
+            $pm_mode = $this->get_option('payment_method_mode', 'none');
+            $pm_methods = $this->get_option('payment_methods', array());
+            if (in_array($pm_mode, array('show', 'hide'), true) && !empty($pm_methods) && is_array($pm_methods)) {
+                $order_data['order']['payment_method_option'] = array(
+                        'online' => array(
+                                $pm_mode => implode(',', $pm_methods)
+                        )
+                );
+            }
+
             $logger->debug('Create payment link params', array(
                 'source' => 'wonderpay-gateway-for-woocommerce',
                 'order_id' => $order_id,

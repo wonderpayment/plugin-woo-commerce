@@ -428,6 +428,43 @@
     font-style: italic;
 }
 
+/* Payment method filter checkbox list (wizard Settings step) */
+.pm-checkbox-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e2e6ea;
+    border-radius: 6px;
+    background: #fafbfc;
+}
+
+.pm-checkbox-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+}
+
+.pm-checkbox-item input[type="checkbox"] {
+    margin: 0;
+    accent-color: #2271b1;
+}
+
+.pm-filter-note {
+    flex-basis: 100%;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px dashed #d8dee4;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #66707a;
+}
+
 .wonder-inline-notice {
     display: none;
     margin-top: 12px;

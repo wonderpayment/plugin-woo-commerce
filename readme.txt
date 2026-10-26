@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -61,6 +61,12 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.10 =
+* New "Payment Methods" filter in the setup wizard's Settings step: choose "Show only selected" or "Hide selected" to constrain which payment methods customers see on the payment link page
+* Curated method list for the primary markets (Visa, Mastercard, American Express, Alipay, WeChat Pay, UnionPay, FPS, PayMe, Octopus); unrestricted by default
+* The filter works per acquirer type, explained in the wizard: e.g. selecting Visa exposes card entry, Google Pay and Samsung Pay together since they all settle through the Visa acquirer
+* Invalid or empty selections fall back safely to no restriction, so a payment link can never end up with zero payment methods
 
 = 1.0.9 =
 * New "Enable Gateway" switch in the setup wizard's Settings step (defaults to on): finishing the wizard now activates the gateway right away, instead of requiring a second trip to the gateway settings page that newer WooCommerce interfaces no longer expose

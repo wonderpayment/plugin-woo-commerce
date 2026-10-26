@@ -211,6 +211,28 @@ class Wonder_Payments_Admin {
                             <input type="number" id="settings-due-date" class="form-input" min="1" max="365" value="30">
                         </div>
 
+                        <!-- Payment Methods Filter section -->
+                        <div class="form-group">
+                            <label class="form-label">Payment Methods</label>
+                            <select id="settings-pm-mode" class="form-input">
+                                <option value="none">No restriction</option>
+                                <option value="show">Show only selected</option>
+                                <option value="hide">Hide selected</option>
+                            </select>
+                            <div class="form-hint">Limit which payment methods customers see on the payment link page</div>
+                            <div id="settings-pm-list" class="pm-checkbox-list" style="display:none;">
+                                <?php foreach (wonder_payments_curated_payment_methods() as $pm_id => $pm_label) : ?>
+                                    <label class="pm-checkbox-item">
+                                        <input type="checkbox" class="pm-method-checkbox" value="<?php echo esc_attr($pm_id); ?>">
+                                        <span><?php echo esc_html($pm_label); ?></span>
+                                    </label>
+                                <?php endforeach; ?>
+                                <div class="pm-filter-note">
+                                    <strong>How the filter works:</strong> options above are <em>acquirer types</em> — the brand/channel that settles the payment. One acquirer type can expose several <em>payment entries</em> on the payment link. For example, selecting "Visa" shows card entry, Google Pay and Samsung Pay together, because all of them settle through the Visa acquirer. Payment entry = how the customer pays (wallet app, manual card input, QR code …); acquirer type = which brand settles it (Visa, Mastercard, PayMe …).
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Settings feedback area -->
                         <div id="settings-notice" class="wonder-inline-notice"></div>
 

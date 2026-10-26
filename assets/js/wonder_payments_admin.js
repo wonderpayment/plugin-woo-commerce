@@ -890,6 +890,18 @@
                         // defaults to enabled, so finishing the wizard activates
                         // the gateway without a second trip to the settings page.
                         $container.find('#settings-enabled').attr('data-enabled', settingsData.enabled === 'no' ? 'false' : 'true');
+
+                        // Payment method filter: restore the mode dropdown and
+                        // check the saved methods; the checkbox list only shows
+                        // when a filter mode is active.
+                        var pmMode = settingsData.payment_method_mode || 'none';
+                        $container.find('#settings-pm-mode').val(pmMode);
+                        var savedMethods = settingsData.payment_methods || [];
+                        $container.find('.pm-method-checkbox').prop('checked', false);
+                        $.each(savedMethods, function(i, method) {
+                            $container.find('.pm-method-checkbox[value="' + method + '"]').prop('checked', true);
+                        });
+                        $container.find('#settings-pm-list').toggle(pmMode === 'show' || pmMode === 'hide');
                     });
             }, 100);
         }
@@ -900,6 +912,10 @@
                 description: $container.find('#settings-description').val(),
                 sandbox_mode: $container.find('#settings-sandbox').attr('data-enabled') === 'true' ? '1' : '0',
                 enabled: $container.find('#settings-enabled').attr('data-enabled') === 'true' ? 'yes' : 'no',
+                payment_method_mode: $container.find('#settings-pm-mode').val() || 'none',
+                payment_methods: $container.find('.pm-method-checkbox:checked').map(function() {
+                    return $(this).val();
+                }).get(),
                 due_date: $container.find('#settings-due-date').val(),
                 app_id: $container.find('#app-id-input').val(),
                 private_key: $container.find('#private-key-input').val(),
@@ -1116,6 +1132,11 @@
                 event.preventDefault();
                 var nextValue = $(this).attr('data-enabled') === 'true' ? 'false' : 'true';
                 $(this).attr('data-enabled', nextValue);
+            })
+            .on('change.wonderPaymentsModal', '#settings-pm-mode', function() {
+                // The method checkboxes only matter when a filter is active.
+                var mode = $(this).val();
+                $container.find('#settings-pm-list').toggle(mode === 'show' || mode === 'hide');
             });
 
         window.addEventListener('message', function(event) {
