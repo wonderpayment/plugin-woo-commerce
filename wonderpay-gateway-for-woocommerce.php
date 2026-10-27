@@ -3,7 +3,7 @@
 Plugin Name: Wonder Payment For WooCommerce
 Plugin URI: https://wonder.app/
 Description: Accept Wonder Payments in WooCommerce with payment links, webhooks, order sync, and refunds.
-Version: 1.0.10
+Version: 1.0.11
 Author: wonder
 Requires Plugins: woocommerce
 Requires PHP: 7.4
@@ -148,6 +148,9 @@ function wonder_payments_curated_payment_methods() {
         'visa' => 'Visa',
         'mastercard' => 'Mastercard',
         'amex' => 'American Express',
+        'jcb' => 'JCB',
+        'diners' => 'Diners Club',
+        'discover' => 'Discover',
         'alipay' => 'Alipay',
         'wechat' => 'WeChat Pay',
         'unionpay_wallet' => 'UnionPay',

@@ -222,13 +222,13 @@ class Wonder_Payments_Admin {
                             <div class="form-hint">Limit which payment methods customers see on the payment link page</div>
                             <div id="settings-pm-list" class="pm-checkbox-list" style="display:none;">
                                 <?php foreach (wonder_payments_curated_payment_methods() as $pm_id => $pm_label) : ?>
-                                    <label class="pm-checkbox-item">
+                                    <label class="pm-checkbox-item"<?php echo $pm_id === 'amex' ? ' title="' . esc_attr('Amex may show no payment method until it is enabled for your shop — combine it with other card types.') . '"' : ''; ?>>
                                         <input type="checkbox" class="pm-method-checkbox" value="<?php echo esc_attr($pm_id); ?>">
-                                        <span><?php echo esc_html($pm_label); ?></span>
+                                        <span><?php echo esc_html($pm_label) . ($pm_id === 'amex' ? ' *' : ''); ?></span>
                                     </label>
                                 <?php endforeach; ?>
                                 <div class="pm-filter-note">
-                                    <strong>How the filter works:</strong> options above are <em>acquirer types</em> — the brand/channel that settles the payment. One acquirer type can expose several <em>payment entries</em> on the payment link. For example, selecting "Visa" shows card entry, Google Pay and Samsung Pay together, because all of them settle through the Visa acquirer. Payment entry = how the customer pays (wallet app, manual card input, QR code …); acquirer type = which brand settles it (Visa, Mastercard, PayMe …).
+                                    <strong>Tip:</strong> options are <em>acquirer types</em> (who settles the payment), not payment entries (how customers pay). Card types like Visa or JCB also show Google Pay / Samsung Pay automatically where supported; wallets like Alipay show only their own entry. * Amex may be unavailable until enabled for your shop.
                                 </div>
                             </div>
                         </div>

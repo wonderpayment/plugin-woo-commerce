@@ -3,7 +3,7 @@ Contributors: wonderpayment
 Tags: woocommerce, payment gateway, payments
 Requires at least: 5.8
 Tested up to: 6.9
-Stable tag: 1.0.10
+Stable tag: 1.0.11
 Requires PHP: 7.4
 Requires Plugins: woocommerce
 License: GPLv2 or later
@@ -61,6 +61,10 @@ Related documentation and policies:
 5. Follow the setup wizard to configure your payment gateway
 
 == Changelog ==
+
+= 1.0.11 =
+* Added JCB, Diners Club and Discover to the payment method filter options, for 12 curated acquirer types in total
+* Condensed the payment filter explanation and added a hover hint that Amex may be unavailable until it is enabled for the shop
 
 = 1.0.10 =
 * New "Payment Methods" filter in the setup wizard's Settings step: choose "Show only selected" or "Hide selected" to constrain which payment methods customers see on the payment link page
